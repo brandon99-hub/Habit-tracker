@@ -11,6 +11,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
+import { subscribeToPush, sendTestNotification, isPushSupported } from "@/lib/push-notifications"
 
 type Notification = {
     id: string
@@ -37,10 +38,15 @@ export function NotificationCenter() {
             setPermission(perm)
 
             if (perm === "granted") {
-                new Notification("HabitForge Notifications Enabled", {
-                    body: "You'll now receive reminders for your habits!",
-                    icon: "/icon.svg",
-                })
+                // Subscribe to push notifications
+                const subscription = await subscribeToPush()
+                if (subscription) {
+                    // TODO: Save subscription to Supabase
+                    console.log('Push subscription:', subscription)
+                }
+
+                // Send test notification
+                await sendTestNotification()
             }
         }
     }

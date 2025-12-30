@@ -24,6 +24,9 @@ import { HabitDetailDialog } from "@/components/habit-detail-dialog"
 import { useHabits } from "@/hooks/use-habits"
 import { useReflections } from "@/hooks/use-reflections"
 import { calculateConsistency, isScheduledToday } from "@/lib/habit-service"
+import { MobileNav } from "@/components/mobile-nav"
+import { SwipeableHabitCard } from "@/components/swipeable-habit-card"
+import { SettingsPage } from "@/components/settings-page"
 
 type Completion = {
   id: string
@@ -47,6 +50,7 @@ export default function HabitForgePage() {
   const [noteHabitValue, setNoteHabitValue] = useState<number | undefined>(undefined)
   const [currentTab, setCurrentTab] = useState<"active" | "archived">("active")
   const [detailHabitId, setDetailHabitId] = useState<string | null>(null)
+  const [mobileTab, setMobileTab] = useState<"today" | "stats" | "reflections" | "settings">("today")
 
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -151,7 +155,7 @@ export default function HabitForgePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-8">
       <div className="mx-auto max-w-7xl px-4 py-8 pb-safe">
         <header className="mb-8 flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -205,126 +209,132 @@ export default function HabitForgePage() {
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleHabits.map((habit) => (
-                <Card key={habit.id} className="p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <button onClick={() => setDetailHabitId(habit.id)} className="flex-1 text-left">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium text-foreground">{habit.name}</h3>
-                        {habit.category && (
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                            {habit.category}
-                          </span>
-                        )}
-                        {habit.scheduled_time && (
-                          <span className="text-xs text-muted-foreground">{habit.scheduled_time}</span>
-                        )}
-                      </div>
-                      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                        {habit.currentStreak > 0 && (
-                          <span className="flex items-center gap-1">
-                            <span className="font-medium text-foreground">{habit.currentStreak}</span> day streak
-                            {habit.pausedDays > 0 && <span className="text-yellow-600">(paused)</span>}
-                          </span>
-                        )}
-                        {habit.longestStreak > habit.currentStreak && <span>Best: {habit.longestStreak} days</span>}
-                        <span>{calculateConsistency(habit.history, 7)}% this week</span>
-                      </div>
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      {habit.type === "binary" ? (
-                        <>
-                          <Button
-                            variant={habit.completedToday ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handleToggleHabit(habit.id)}
-                            className="h-10 gap-2 px-4"
-                          >
-                            {habit.completedToday && <Check className="h-4 w-4" />}
-                            {habit.completedToday ? "Done" : "Mark Done"}
-                          </Button>
-                          {!habit.completedToday && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openNoteDialog(habit.id)}
-                              className="h-10 w-10 p-0"
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </>
-                      ) : (
+                <SwipeableHabitCard
+                  key={habit.id}
+                  onSwipeRight={() => !habit.completedToday && handleToggleHabit(habit.id)}
+                  disabled={habit.completedToday}
+                >
+                  <Card className="p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <button onClick={() => setDetailHabitId(habit.id)} className="flex-1 text-left">
                         <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={habit.value || 0}
-                            onChange={async (e) => {
-                              const val = Number.parseInt(e.target.value) || 0
-                              await updateHabit(habit.id, { value: val } as any)
-                            }}
-                            className="h-10 w-20 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          />
-                          <Button
-                            variant={habit.completedToday ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handleToggleHabit(habit.id, habit.value)}
-                            className="h-10 gap-2 px-4"
-                          >
-                            {habit.completedToday && <Check className="h-4 w-4" />}
-                            Log
-                          </Button>
-                          {!habit.completedToday && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openNoteDialog(habit.id, habit.value)}
-                              className="h-10 w-10 p-0"
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </Button>
+                          <h3 className="font-medium text-foreground">{habit.name}</h3>
+                          {habit.category && (
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                              {habit.category}
+                            </span>
+                          )}
+                          {habit.scheduled_time && (
+                            <span className="text-xs text-muted-foreground">{habit.scheduled_time}</span>
                           )}
                         </div>
-                      )}
+                        <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                          {habit.currentStreak > 0 && (
+                            <span className="flex items-center gap-1">
+                              <span className="font-medium text-foreground">{habit.currentStreak}</span> day streak
+                              {habit.pausedDays > 0 && <span className="text-yellow-600">(paused)</span>}
+                            </span>
+                          )}
+                          {habit.longestStreak > habit.currentStreak && <span>Best: {habit.longestStreak} days</span>}
+                          <span>{calculateConsistency(habit.history, 7)}% this week</span>
+                        </div>
+                      </button>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-10 w-10 p-0">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setEditHabitId(habit.id)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => togglePauseHabit(habit.id)}>
-                            {habit.paused ? (
-                              <>
-                                <Play className="mr-2 h-4 w-4" />
-                                Resume
-                              </>
-                            ) : (
-                              <>
-                                <Pause className="mr-2 h-4 w-4" />
-                                Pause
-                              </>
+                      <div className="flex items-center gap-2">
+                        {habit.type === "binary" ? (
+                          <>
+                            <Button
+                              variant={habit.completedToday ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleToggleHabit(habit.id)}
+                              className="h-10 gap-2 px-4"
+                            >
+                              {habit.completedToday && <Check className="h-4 w-4" />}
+                              {habit.completedToday ? "Done" : "Mark Done"}
+                            </Button>
+                            {!habit.completedToday && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openNoteDialog(habit.id)}
+                                className="h-10 w-10 p-0"
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                              </Button>
                             )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => archiveHabit(habit.id)}>
-                            <Archive className="mr-2 h-4 w-4" />
-                            Archive
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleDeleteHabit(habit.id)} className="text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={habit.value || 0}
+                              onChange={async (e) => {
+                                const val = Number.parseInt(e.target.value) || 0
+                                await updateHabit(habit.id, { value: val } as any)
+                              }}
+                              className="h-10 w-20 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            />
+                            <Button
+                              variant={habit.completedToday ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleToggleHabit(habit.id, habit.value)}
+                              className="h-10 gap-2 px-4"
+                            >
+                              {habit.completedToday && <Check className="h-4 w-4" />}
+                              Log
+                            </Button>
+                            {!habit.completedToday && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openNoteDialog(habit.id, habit.value)}
+                                className="h-10 w-10 p-0"
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-10 w-10 p-0">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setEditHabitId(habit.id)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => togglePauseHabit(habit.id)}>
+                              {habit.paused ? (
+                                <>
+                                  <Play className="mr-2 h-4 w-4" />
+                                  Resume
+                                </>
+                              ) : (
+                                <>
+                                  <Pause className="mr-2 h-4 w-4" />
+                                  Pause
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => archiveHabit(habit.id)}>
+                              <Archive className="mr-2 h-4 w-4" />
+                              Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleDeleteHabit(habit.id)} className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
-                  </div>
-                </Card>
+                  </Card>
+                </SwipeableHabitCard>
               ))}
 
               {activeHabits.some((h) => h.paused) && (
@@ -393,14 +403,35 @@ export default function HabitForgePage() {
           </TabsContent>
         </Tabs>
 
-        <HabitStats habits={activeHabits} />
+        {/* Desktop: Show all sections | Mobile: Show based on active tab */}
+        <div className={mobileTab !== "today" ? "hidden md:block" : "md:block"}>
+          {mobileTab === "today" && (
+            <div className="md:hidden">
+              {/* Mobile Today tab content - just habits, no stats */}
+            </div>
+          )}
+        </div>
 
-        <WeeklyReflection
-          reflections={reflections.map(r => ({ ...r, date: r.created_at }))}
-          onAddReflection={handleAddReflection}
-        />
+        <div className={mobileTab !== "stats" ? "hidden md:block" : "block"}>
+          <HabitStats habits={activeHabits} />
+        </div>
 
-        <HabitTimeline habits={habits} />
+        <div className={mobileTab !== "reflections" ? "hidden md:block" : "block"}>
+          <WeeklyReflection
+            reflections={reflections.map(r => ({ ...r, date: r.created_at }))}
+            onAddReflection={handleAddReflection}
+          />
+
+          <div className="mt-8">
+            <HabitTimeline habits={habits} />
+          </div>
+        </div>
+
+        {mobileTab === "settings" && (
+          <div className="md:hidden">
+            <SettingsPage />
+          </div>
+        )}
 
         <AddHabitDialog open={showAddDialog} onOpenChange={setShowAddDialog} onAdd={handleAddHabit} />
         <HabitNoteDialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen} onSubmit={handleHabitWithNote} />
@@ -413,6 +444,9 @@ export default function HabitForgePage() {
           />
         )}
       </div>
+
+      {/* Mobile Navigation */}
+      <MobileNav activeTab={mobileTab} onTabChange={setMobileTab} />
 
       {detailHabitId && (
         <HabitDetailDialog
