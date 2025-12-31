@@ -12,6 +12,7 @@ import { Grid, Calendar, User, CheckCircle2, ArrowLeft, Bell, Lock, Mail } from 
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
+import { InstallAppSection } from "@/components/tasks/install-app-section"
 
 export default function ProfilePage() {
     const router = useRouter()
@@ -238,7 +239,7 @@ export default function ProfilePage() {
                 </Card>
 
                 {/* Sign Out */}
-                <Card className="p-6">
+                <Card className="p-6 mb-4">
                     <Button
                         onClick={signOut}
                         variant="destructive"
@@ -247,6 +248,9 @@ export default function ProfilePage() {
                         Sign Out
                     </Button>
                 </Card>
+
+                {/* Install App Section */}
+                <InstallAppSection />
 
                 {/* Bottom Navigation */}
                 <BottomNav

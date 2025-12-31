@@ -161,10 +161,7 @@ export function CalendarView({ tasks, properties, propertyValues, recurringTasks
                     <h3 className="text-lg font-semibold">
                         Tasks for {format(selectedDate, "MMMM d, yyyy")}
                     </h3>
-                    <div className="flex items-center gap-2">
-                        <TaskFilters filters={filters} onFilterChange={setFilters} />
-                        <TaskSort sort={sort} onSortChange={setSort} />
-                    </div>
+
                 </div>
 
                 {sortedTasks.length === 0 ? (

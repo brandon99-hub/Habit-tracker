@@ -60,7 +60,7 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
 
     return (
         <Card className="p-4">
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3 sm:gap-4 touch-manipulation">
                 {/* Icon */}
                 <TaskIcon iconName={task.icon} className="text-primary" />
 
@@ -167,7 +167,8 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2">
+                {/* Actions */}
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-auto">
                     <Button
                         size="sm"
                         variant="ghost"
