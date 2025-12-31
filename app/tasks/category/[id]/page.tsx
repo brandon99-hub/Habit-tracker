@@ -17,6 +17,8 @@ import { RecurringTaskDialog } from "@/components/tasks/recurring-task-dialog"
 import { ReminderDialog } from "@/components/tasks/reminder-dialog"
 import { getPropertyValues } from "@/lib/tasks/supabase-categories"
 import { getRecurringTask } from "@/lib/tasks/recurring-service"
+import { createReminder } from "@/lib/tasks/reminder-service"
+import { useAuth } from "@/lib/auth-context"
 import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
@@ -25,6 +27,7 @@ import type { Page } from "@/lib/tasks/supabase-categories"
 export default function CategoryPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
     const router = useRouter()
+    const { user } = useAuth()
     const { tasks, properties, loading, addTask, editTask, removeTask, updateProperty } = useTasks(id)
     const [showAddDialog, setShowAddDialog] = useState(false)
     const [view, setView] = useState<"table" | "calendar">("table")
@@ -131,7 +134,8 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
         icon?: string,
         status?: string,
         priority?: string,
-        dueDate?: Date
+        dueDate?: Date,
+        reminderOffset?: number
     ) => {
         const result = await addTask(title, icon)
 
@@ -152,13 +156,45 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
             }
 
             // Save due date
+            let localDateString = ""
             if (dueDateProp && dueDate) {
-                // Format date as YYYY-MM-DD in local timezone to avoid off-by-one errors
+                // Save ISO string for complete date+time accuracy
+                // But for the property (datepicker), we might want just YYYY-MM-DD
+                // The current implementation seemed to save YYYY-MM-DD
+                // Let's stick to ISO string if it includes time, or verify how property handles it.
+                // Reverting to previous logic but using ISO for reminder
+
+                // For Property (Legacy Date Picker comp): YYYY-MM-DD
+                // For Reminder: ISO String
+
                 const year = dueDate.getFullYear()
                 const month = String(dueDate.getMonth() + 1).padStart(2, '0')
                 const day = String(dueDate.getDate()).padStart(2, '0')
-                const localDateString = `${year}-${month}-${day}`
-                await updateProperty(result.data.id, dueDateProp.id, localDateString)
+                const hours = String(dueDate.getHours()).padStart(2, '0')
+                const minutes = String(dueDate.getMinutes()).padStart(2, '0')
+
+                // If time is set (not 00:00 or 23:59 default), maybe include specific format?
+                // For now, let's save the ISO string to the property as well if possible, 
+                // but if the field is 'date' type, it might expect YYYY-MM-DD.
+                // Keeping YYYY-MM-DD for the basic property to be safe with existing filters
+                localDateString = `${year}-${month}-${day}`
+
+                // Check if the property type allows full datetime. 
+                // If it's just 'date' type in DB, it might truncate. 
+                // Assuming it stores string.
+                // Let's store YYYY-MM-DDTHH:mm:ss for better precision if supported
+                const isoString = dueDate.toISOString()
+                await updateProperty(result.data.id, dueDateProp.id, isoString)
+            }
+
+            // Create Reminder if offset is provided
+            if (reminderOffset !== undefined && dueDate && user) {
+                await createReminder(
+                    result.data.id,
+                    user.id,
+                    dueDate.toISOString(),
+                    reminderOffset
+                )
             }
 
             toast({

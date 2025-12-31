@@ -12,9 +12,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 import type { Page, Property } from "@/lib/tasks/supabase-categories"
 import { getPropertyValues } from "@/lib/tasks/supabase-categories"
 import { TaskIcon } from "./task-icon"
+import { TimePicker } from "@/components/ui/time-picker"
 
 type Props = {
     task: Page
@@ -59,148 +61,189 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
     const dueDateProperty = properties.find((p) => p.name === "Due Date")
 
     return (
-        <Card className="p-4">
-            <div className="flex items-start gap-3 sm:gap-4 touch-manipulation">
-                {/* Icon */}
-                <TaskIcon iconName={task.icon} className="text-primary" />
+        <Card className="p-3 sm:p-4 transition-all hover:bg-accent/5">
+            <div className="flex gap-3 items-start">
+                {/* Icon Column - Fixed width */}
+                <div className="pt-1 flex-shrink-0">
+                    <TaskIcon iconName={task.icon} className="text-primary h-5 w-5 sm:h-6 sm:w-6" />
+                </div>
 
-                {/* Content */}
-                <div className="flex-1 space-y-3">
-                    {/* Title */}
-                    {isEditing ? (
-                        <div className="flex items-center gap-2">
-                            <Input
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") handleSaveTitle()
-                                    if (e.key === "Escape") {
-                                        setTitle(task.title)
-                                        setIsEditing(false)
-                                    }
-                                }}
-                                autoFocus
-                                className="flex-1"
-                            />
-                            <Button size="sm" variant="ghost" onClick={handleSaveTitle}>
-                                <Check className="h-4 w-4" />
-                            </Button>
+                {/* Main Content Column */}
+                <div className="flex-1 min-w-0 space-y-3">
+                    {/* Header Row: Title + Actions */}
+                    <div className="flex justify-between items-start gap-2">
+                        {/* Title Section */}
+                        <div className="flex-1 min-w-0 pt-0.5">
+                            {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                    <Input
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") handleSaveTitle()
+                                            if (e.key === "Escape") {
+                                                setTitle(task.title)
+                                                setIsEditing(false)
+                                            }
+                                        }}
+                                        autoFocus
+                                        className="h-8 text-sm"
+                                    />
+                                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSaveTitle}>
+                                        <Check className="h-4 w-4 text-green-500" />
+                                    </Button>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8"
+                                        onClick={() => {
+                                            setTitle(task.title)
+                                            setIsEditing(false)
+                                        }}
+                                    >
+                                        <X className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <h3
+                                    className="font-medium text-base leading-tight cursor-pointer hover:text-primary transition-colors break-words"
+                                    onClick={() => setIsEditing(true)}
+                                >
+                                    {task.title}
+                                </h3>
+                            )}
+                        </div>
+
+                        {/* Actions Context Menu (Desktop: Row, Mobile: Compact) */}
+                        <div className="flex items-center gap-0.5 flex-shrink-0 -mr-2 sm:mr-0">
                             <Button
-                                size="sm"
+                                size="icon"
                                 variant="ghost"
                                 onClick={() => {
-                                    setTitle(task.title)
-                                    setIsEditing(false)
+                                    const event = new CustomEvent("openRecurring", { detail: { taskId: task.id } })
+                                    window.dispatchEvent(event)
                                 }}
+                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                title="Recurring"
                             >
-                                <X className="h-4 w-4" />
+                                <Repeat className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                    const event = new CustomEvent("openReminder", { detail: { taskId: task.id, dueDate: propertyValues[dueDateProperty?.id || ""] } })
+                                    window.dispatchEvent(event)
+                                }}
+                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                title="Reminders"
+                            >
+                                <Bell className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => onDelete(task.id)}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Delete"
+                            >
+                                <Trash2 className="h-4 w-4" />
                             </Button>
                         </div>
-                    ) : (
-                        <h3
-                            className="font-medium text-foreground cursor-pointer hover:text-primary"
-                            onClick={() => setIsEditing(true)}
-                        >
-                            {task.title}
-                        </h3>
-                    )}
+                    </div>
 
-                    {/* Properties */}
-                    <div className="flex flex-wrap gap-3 text-sm">
+                    {/* Properties Row - Wraps naturally */}
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
                         {/* Status */}
                         {statusProperty && (
-                            <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">Status:</span>
-                                <Select
-                                    value={propertyValues[statusProperty.id] || "Not Started"}
-                                    onValueChange={(value) => handlePropertyChange(statusProperty.id, value)}
-                                >
-                                    <SelectTrigger className="w-[150px] h-8">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {statusProperty.config?.options?.map((option: string) => (
-                                            <SelectItem key={option} value={option}>
-                                                {option}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <Select
+                                value={propertyValues[statusProperty.id] || "Not Started"}
+                                onValueChange={(value) => handlePropertyChange(statusProperty.id, value)}
+                            >
+                                <SelectTrigger className="h-7 w-[130px] text-xs border-dashed bg-transparent hover:bg-accent/50">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {statusProperty.config?.options?.map((option: string) => (
+                                        <SelectItem key={option} value={option}>
+                                            {option}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         )}
 
                         {/* Priority */}
                         {priorityProperty && (
-                            <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">Priority:</span>
-                                <Select
-                                    value={propertyValues[priorityProperty.id] || "Medium"}
-                                    onValueChange={(value) => handlePropertyChange(priorityProperty.id, value)}
-                                >
-                                    <SelectTrigger className="w-[120px] h-8">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {priorityProperty.config?.options?.map((option: string) => (
-                                            <SelectItem key={option} value={option}>
-                                                {option}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <Select
+                                value={propertyValues[priorityProperty.id] || "Medium"}
+                                onValueChange={(value) => handlePropertyChange(priorityProperty.id, value)}
+                            >
+                                <SelectTrigger className={cn(
+                                    "h-7 w-[100px] text-xs border-dashed bg-transparent hover:bg-accent/50",
+                                    propertyValues[priorityProperty.id] === 'High' && "text-orange-500 font-medium",
+                                    propertyValues[priorityProperty.id] === 'Urgent' && "text-red-500 font-bold"
+                                )}>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {priorityProperty.config?.options?.map((option: string) => (
+                                        <SelectItem key={option} value={option}>
+                                            {option}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         )}
 
-                        {/* Due Date */}
+                        {/* Due Date & Time Group */}
                         {dueDateProperty && (
-                            <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">Due:</span>
+                            <div className="flex items-center gap-1 bg-accent/10 rounded-md p-0.5 px-2 border border-border/50">
                                 <Input
                                     type="date"
-                                    value={propertyValues[dueDateProperty.id] || ""}
-                                    onChange={(e) => handlePropertyChange(dueDateProperty.id, e.target.value)}
-                                    className="w-[150px] h-8"
+                                    value={propertyValues[dueDateProperty.id]?.split('T')[0] || ""}
+                                    onChange={(e) => {
+                                        const dateStr = e.target.value
+                                        const currentIso = propertyValues[dueDateProperty.id]
+
+                                        if (currentIso && dateStr) {
+                                            const timePart = currentIso.split('T')[1] || '00:00:00.000Z'
+                                            const newIso = `${dateStr}T${timePart}`
+                                            handlePropertyChange(dueDateProperty.id, newIso)
+                                        } else {
+                                            handlePropertyChange(dueDateProperty.id, dateStr)
+                                        }
+                                    }}
+                                    className="h-6 w-auto min-w-[110px] border-0 bg-transparent p-0 text-xs focus-visible:ring-0 shadow-none cursor-pointer"
+                                />
+
+                                <div className="w-[1px] h-4 bg-border/50 mx-1" />
+
+                                <TimePicker
+                                    value={(() => {
+                                        const iso = propertyValues[dueDateProperty.id]
+                                        if (!iso || !iso.includes('T')) return ""
+                                        const date = new Date(iso)
+                                        if (isNaN(date.getTime())) return ""
+                                        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+                                    })()}
+                                    onTimeChange={(newTime) => {
+                                        const currentIso = propertyValues[dueDateProperty.id]
+                                        if (!currentIso) return
+
+                                        const datePart = currentIso.split('T')[0]
+                                        const [hours, minutes] = newTime.split(':')
+                                        const dateObj = new Date(currentIso.includes('T') ? currentIso : `${datePart}T00:00:00`)
+                                        dateObj.setHours(parseInt(hours))
+                                        dateObj.setMinutes(parseInt(minutes))
+
+                                        handlePropertyChange(dueDateProperty.id, dateObj.toISOString())
+                                    }}
+                                    className="h-6 w-[85px] border-0 bg-transparent p-0 text-xs focus-visible:ring-0 shadow-none"
                                 />
                             </div>
                         )}
                     </div>
-                </div>
-
-                {/* Actions */}
-                {/* Actions */}
-                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-auto">
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                            // Open recurring dialog
-                            const event = new CustomEvent("openRecurring", { detail: { taskId: task.id } })
-                            window.dispatchEvent(event)
-                        }}
-                        className="text-muted-foreground hover:text-foreground"
-                    >
-                        <Repeat className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                            // Open reminder dialog
-                            const event = new CustomEvent("openReminder", { detail: { taskId: task.id, dueDate: propertyValues[dueDateProperty?.id || ""] } })
-                            window.dispatchEvent(event)
-                        }}
-                        className="text-muted-foreground hover:text-foreground"
-                    >
-                        <Bell className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onDelete(task.id)}
-                        className="text-destructive hover:text-destructive"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
                 </div>
             </div>
         </Card>

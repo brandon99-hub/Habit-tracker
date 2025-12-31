@@ -72,7 +72,7 @@ export function CreateCategoryDialog({ open, onOpenChange, onCreate }: CreateCat
                     {/* Icon Selection */}
                     <div className="space-y-2">
                         <Label>Icon</Label>
-                        <div className="grid grid-cols-8 gap-2">
+                        <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
                             {EMOJI_OPTIONS.map((emoji) => (
                                 <button
                                     key={emoji}

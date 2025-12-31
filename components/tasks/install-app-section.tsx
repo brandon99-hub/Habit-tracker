@@ -32,8 +32,9 @@ export function InstallAppSection() {
     const handleInstallClick = async () => {
         if (!deferredPrompt) {
             toast({
-                title: "Installation Info",
-                description: "App might already be installed or your browser doesn't support manual installation. Check your browser menu.",
+                title: "Manual Install Required",
+                description: "Tap the browser menu (⋮) and select 'Add to Home Screen' or 'Install App'.",
+                duration: 5000,
             })
             return
         }
@@ -47,24 +48,33 @@ export function InstallAppSection() {
         }
     }
 
-    // Only show if not installed (or if we want to show it always with a disabled state)
-    // For now, let's show it always but give feedback if clicked and not prompted
     return (
-        <Card className="p-6 mb-20"> {/* Extra margin for bottom nav */}
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <Card className="p-6 mb-20">
+            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
                 <Download className="h-5 w-5" />
                 Install TaskFlow
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-                Install the app on your home screen for a better experience.
+                Get the standalone app experience.
             </p>
-            <Button
-                onClick={handleInstallClick}
-                className="w-full gradient-primary text-white border-0"
-                disabled={isInstalled}
-            >
-                {isInstalled ? "App Installed" : "Install App"}
-            </Button>
+
+            <div className="space-y-3">
+                <Button
+                    onClick={handleInstallClick}
+                    className="w-full gradient-primary text-white border-0"
+                    disabled={isInstalled}
+                >
+                    {isInstalled ? "App Installed" : "Install App"}
+                </Button>
+
+                {!deferredPrompt && !isInstalled && (
+                    <div className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+                        <p className="font-semibold mb-1">Don't see a prompt?</p>
+                        <p>1. Tap your browser menu <span className="inline-block px-1 bg-background rounded border">⋮</span> or <span className="inline-block px-1 bg-background rounded border">Share</span></p>
+                        <p>2. Select <strong>"Add to Home Screen"</strong> or <strong>"Install App"</strong></p>
+                    </div>
+                )}
+            </div>
         </Card>
     )
 }

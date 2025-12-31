@@ -14,6 +14,8 @@ import { useState, useEffect } from "react"
 import { CreateCategoryDialog } from "@/components/tasks/create-category-dialog"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
+import { getPropertyValues } from "@/lib/tasks/supabase-categories"
 
 export default function TasksPage() {
     const { user, signOut } = useAuth()
@@ -21,13 +23,73 @@ export default function TasksPage() {
     const [showCategoryDialog, setShowCategoryDialog] = useState(false)
     const router = useRouter()
 
-    // No mock data - stats will be calculated from real tasks when we fetch them
-    // For now, just show category count
-    const stats = {
-        total: 0, // Will be calculated from actual tasks
-        completed: 0, // Will be calculated from actual tasks
-        overdue: 0, // Will be calculated from actual tasks
-    }
+    const [stats, setStats] = useState({
+        total: 0,
+        completed: 0, // Completed today
+        overdue: 0,
+    })
+
+    useEffect(() => {
+        async function fetchStats() {
+            if (!user) return
+
+            // 1. Fetch properites to find "Status" and "Due Date" IDs
+            const { data: propsData } = await supabase
+                .from("task_properties")
+                .select("*")
+
+            const statusProp = propsData?.find(p => p.name === "Status")
+            const dueDateProp = propsData?.find(p => p.name === "Due Date")
+
+            // 2. Fetch all tasks
+            const { data: tasks, error } = await supabase
+                .from("task_pages")
+                .select("*")
+
+            if (!tasks || error) return
+
+            let completedToday = 0
+            let overdue = 0
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+
+            // 3. For each task, check status and due date
+            // Note: In a larger app, we would use a more optimized SQL query or Edge Function
+            await Promise.all(tasks.map(async (task) => {
+                const { data: values } = await getPropertyValues(task.id)
+
+                const statusVal = values?.find((v: any) => v.property_id === statusProp?.id)?.value
+                const dueDateVal = values?.find((v: any) => v.property_id === dueDateProp?.id)?.value
+
+                // Check Completed Today
+                // Assuming "Done" is the completed status
+                if (statusVal === "Done") {
+                    const updatedAt = new Date(task.updated_at) // task_pages has updated_at
+                    updatedAt.setHours(0, 0, 0, 0)
+                    if (updatedAt.getTime() === today.getTime()) {
+                        completedToday++
+                    }
+                }
+
+                // Check Overdue
+                if (dueDateVal && statusVal !== "Done") {
+                    const due = new Date(dueDateVal)
+                    // If due date is before today (not including today)
+                    if (due < today) {
+                        overdue++
+                    }
+                }
+            }))
+
+            setStats({
+                total: tasks.length,
+                completed: completedToday,
+                overdue: overdue
+            })
+        }
+
+        fetchStats()
+    }, [user])
 
     const handleCreateCategory = async (
         name: string,
