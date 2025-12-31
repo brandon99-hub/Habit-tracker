@@ -80,34 +80,23 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
 
-    if (event.action === 'complete') {
-        // Handle mark as done action
-        event.waitUntil(
-            clients.openWindow('/?action=complete&habitId=' + event.notification.data.habitId)
-        );
-    } else if (event.action === 'view') {
-        // Handle view action
-        event.waitUntil(
-            clients.openWindow('/')
-        );
-    } else {
-        // Default action - open app
-        event.waitUntil(
-            clients.matchAll({ type: 'window', includeUncontrolled: true })
-                .then((clientList) => {
-                    // Check if app is already open
-                    for (let client of clientList) {
-                        if (client.url === '/' && 'focus' in client) {
-                            return client.focus();
-                        }
+    const urlToOpen = event.notification.data.url || '/';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true })
+            .then((clientList) => {
+                // Check if app is already open
+                for (let client of clientList) {
+                    if (client.url.includes(urlToOpen) && 'focus' in client) {
+                        return client.focus();
                     }
-                    // Open new window if not
-                    if (clients.openWindow) {
-                        return clients.openWindow('/');
-                    }
-                })
-        );
-    }
+                }
+                // Open new window if not
+                if (clients.openWindow) {
+                    return clients.openWindow(urlToOpen);
+                }
+            })
+    );
 });
 
 // Background sync (for future use)

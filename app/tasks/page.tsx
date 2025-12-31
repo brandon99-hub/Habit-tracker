@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { getPropertyValues } from "@/lib/tasks/supabase-categories"
+import { usePushSubscription } from "@/hooks/use-push-subscription"
 
 export default function TasksPage() {
     const { user, signOut } = useAuth()
@@ -28,6 +29,17 @@ export default function TasksPage() {
         completed: 0, // Completed today
         overdue: 0,
     })
+
+    const { subscribe, isSubscribed } = usePushSubscription()
+
+    useEffect(() => {
+        // Auto-subscribe user if not already subscribed
+        if (!isSubscribed) {
+            // In a real app, we might want a UI button for this
+            // For now, we request it on load to solve the immediate issue
+            subscribe()
+        }
+    }, [isSubscribed]) // Removed `subscribe` from deps to avoid loop if implementation changes
 
     useEffect(() => {
         async function fetchStats() {
