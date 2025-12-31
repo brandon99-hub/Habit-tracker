@@ -1,6 +1,7 @@
 {
     "name": "TaskFlow",
     "short_name": "TaskFlow",
+    "id": "/tasks/?task-flow",
     "description": "Track tasks, projects, and recurring goals.",
     "start_url": "/tasks",
     "scope": "/tasks",

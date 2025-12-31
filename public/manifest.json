@@ -1,6 +1,7 @@
 {
     "name": "HabitForge",
     "short_name": "HabitForge",
+    "id": "/?habit-forge",
     "description": "Discipline through clarity. Track what matters.",
     "start_url": "/",
     "display": "standalone",
