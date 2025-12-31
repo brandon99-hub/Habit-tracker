@@ -57,13 +57,18 @@ export async function GET(request: NextRequest) {
             // 4. Send notification to all user's devices
             for (const sub of subs) {
                 try {
+                    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
+                    const targetUrl = reminder.task_pages?.parent_id
+                        ? `${siteUrl}/tasks/category/${reminder.task_pages.parent_id}`
+                        : `${siteUrl}/tasks`
+
                     const payload = JSON.stringify({
                         title: reminder.task_pages?.title || "Task Reminder",
                         body: "This task is due soon!",
                         icon: "/icon-192x192.png",
                         data: {
-                            habitId: reminder.page_id, // Reuse habitId field for task page
-                            url: `/tasks/category/${reminder.task_pages?.parent_id}`
+                            habitId: reminder.page_id,
+                            url: targetUrl
                         }
                     })
 
