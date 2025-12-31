@@ -39,6 +39,7 @@ type Props = {
     onOpenChange: (open: boolean) => void
     onAdd: (title: string, icon?: string, status?: string, priority?: string, dueDate?: Date, reminderOffset?: number) => void
     properties: any[]
+    gradient?: string
 }
 
 type IconOption = {
@@ -64,7 +65,7 @@ const iconOptions: IconOption[] = [
     { name: "Mail", icon: Mail },
 ]
 
-export function AddTaskDialog({ open, onOpenChange, onAdd, properties }: Props) {
+export function AddTaskDialog({ open, onOpenChange, onAdd, properties, gradient }: Props) {
     const [title, setTitle] = useState("")
     const [selectedIcon, setSelectedIcon] = useState("")
     const [status, setStatus] = useState("Not Started")
@@ -153,7 +154,7 @@ export function AddTaskDialog({ open, onOpenChange, onAdd, properties }: Props) 
                                             className={cn(
                                                 "p-3 rounded-lg border-2 transition-all text-xs font-medium",
                                                 !selectedIcon
-                                                    ? "border-primary bg-primary/10 scale-105"
+                                                    ? (gradient ? `gradient-${gradient} text-white border-0 scale-105` : "border-primary bg-primary/10 scale-105")
                                                     : "border-border hover:border-primary/50"
                                             )}
                                         >
@@ -169,7 +170,7 @@ export function AddTaskDialog({ open, onOpenChange, onAdd, properties }: Props) 
                                                     className={cn(
                                                         "p-3 rounded-lg border-2 transition-all hover:scale-110",
                                                         selectedIcon === option.name
-                                                            ? "border-primary bg-primary/10 scale-110"
+                                                            ? (gradient ? `gradient-${gradient} text-white border-0 scale-110` : "border-primary bg-primary/10 scale-110")
                                                             : "border-border hover:border-primary/50"
                                                     )}
                                                     title={option.name}
@@ -285,7 +286,30 @@ export function AddTaskDialog({ open, onOpenChange, onAdd, properties }: Props) 
                                         <Switch
                                             id="reminder-toggle"
                                             checked={enableReminder}
-                                            onCheckedChange={setEnableReminder}
+                                            onCheckedChange={async (checked) => {
+                                                if (checked) {
+                                                    // Request permission if needed
+                                                    if (!("Notification" in window)) {
+                                                        // Fallback or specific handling for no support
+                                                        setEnableReminder(true) // Still allow saving to DB? Maybe
+                                                        return
+                                                    }
+
+                                                    if (Notification.permission === "granted") {
+                                                        setEnableReminder(true)
+                                                    } else if (Notification.permission !== "denied") {
+                                                        const permission = await Notification.requestPermission()
+                                                        if (permission === "granted") {
+                                                            setEnableReminder(true)
+                                                        }
+                                                    } else {
+                                                        // Denied
+                                                        alert("Please enable notifications in your browser settings to use reminders.")
+                                                    }
+                                                } else {
+                                                    setEnableReminder(false)
+                                                }
+                                            }}
                                             disabled={!dueDate} // Need at least a date
                                         />
                                     </div>
@@ -330,7 +354,10 @@ export function AddTaskDialog({ open, onOpenChange, onAdd, properties }: Props) 
                         </Button>
                         <Button
                             type="submit"
-                            className="flex-1 gradient-primary text-white border-0 hover:opacity-90"
+                            className={cn(
+                                "flex-1 text-white border-0 hover:opacity-90 shadow-md",
+                                gradient ? `gradient-${gradient}` : "gradient-primary"
+                            )}
                             disabled={!title.trim()}
                         >
                             Add Task

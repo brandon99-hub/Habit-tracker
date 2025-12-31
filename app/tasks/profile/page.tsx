@@ -25,6 +25,13 @@ export default function ProfilePage() {
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
 
+    // Sync notification state with browser permission
+    useState(() => {
+        if (typeof window !== "undefined" && "Notification" in window) {
+            setNotificationsEnabled(Notification.permission === "granted")
+        }
+    })
+
     const handleUpdateProfile = async () => {
         const { error } = await supabase.auth.updateUser({
             data: { name }
@@ -227,9 +234,39 @@ export default function ProfilePage() {
                         </div>
                         <Switch
                             checked={notificationsEnabled}
-                            onCheckedChange={(checked) => {
+                            onCheckedChange={async (checked) => {
                                 if (checked) {
-                                    handleRequestNotificationPermission()
+                                    if (!("Notification" in window)) {
+                                        toast({
+                                            title: "Not Supported",
+                                            description: "This browser does not support desktop notifications",
+                                            variant: "destructive",
+                                        })
+                                        return
+                                    }
+
+                                    if (Notification.permission === "granted") {
+                                        setNotificationsEnabled(true)
+                                    } else if (Notification.permission !== "denied") {
+                                        const permission = await Notification.requestPermission()
+                                        if (permission === "granted") {
+                                            setNotificationsEnabled(true)
+                                            toast({
+                                                title: "Success",
+                                                description: "Notifications enabled",
+                                            })
+                                        } else {
+                                            setNotificationsEnabled(false)
+                                        }
+                                    } else {
+                                        // Denied
+                                        toast({
+                                            title: "Permission Denied",
+                                            description: "Please enable notifications in your browser settings to receive reminders.",
+                                            variant: "destructive",
+                                        })
+                                        setNotificationsEnabled(false)
+                                    }
                                 } else {
                                     setNotificationsEnabled(false)
                                 }

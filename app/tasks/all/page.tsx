@@ -18,6 +18,9 @@ import { getRecurringTask } from "@/lib/tasks/recurring-service"
 import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import type { Page } from "@/lib/tasks/supabase-categories"
 import { supabase } from "@/lib/supabase"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import { Clock } from "lucide-react"
 
 export default function AllTasksPage() {
     const router = useRouter()
@@ -173,23 +176,114 @@ export default function AllTasksPage() {
                     ) : (
                         sortedTasks.map((task) => {
                             const category = categories.find(c => c.id === task.category_id)
+                            const taskValues = propertyValues[task.id] || {}
+
+                            // Find specific properties
+                            const statusProp = properties.find(p => p.name === "Status")
+                            const priorityProp = properties.find(p => p.name === "Priority")
+                            const dueDateProp = properties.find(p => p.name === "Due Date")
+
+                            const statusVal = statusProp ? taskValues[statusProp.id] : null
+                            const priorityVal = priorityProp ? taskValues[priorityProp.id] : null
+                            const dueDateVal = dueDateProp ? taskValues[dueDateProp.id] : null
+
                             return (
                                 <Card
                                     key={task.id}
-                                    className="p-4 hover-lift cursor-pointer"
+                                    className="p-4 transition-all hover:bg-accent/5 cursor-pointer border border-border/50 group"
                                     onClick={() => router.push(`/tasks/category/${task.category_id}`)}
                                 >
-                                    <div className="flex items-start gap-3">
-                                        <TaskIcon iconName={task.icon} className="text-primary mt-1" />
-                                        <div className="flex-1">
-                                            <h3 className="font-medium text-foreground mb-1">
-                                                {task.title}
-                                            </h3>
+                                    <div className="flex gap-4 items-start">
+                                        {/* Icon & Category Indicator */}
+                                        <div className="relative">
+                                            <TaskIcon iconName={task.icon} className="h-8 w-8 text-primary" />
                                             {category && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    {category.icon} {category.name}
-                                                </p>
+                                                <div className="absolute -bottom-1 -right-1 bg-background rounded-full border border-border p-0.5 text-[8px]" title={category.name}>
+                                                    {category.icon || "📁"}
+                                                </div>
                                             )}
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0 space-y-2">
+                                            {/* Top Line: Title & Category */}
+                                            <div className="flex justify-between items-start gap-2">
+                                                <div className="min-w-0">
+                                                    <h3 className="font-semibold text-lg leading-tight truncate group-hover:text-primary transition-colors">
+                                                        {task.title}
+                                                    </h3>
+                                                    {category && (
+                                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                                            <span className="text-sm">{category.icon}</span>
+                                                            <span className={cn(
+                                                                "text-[10px] uppercase tracking-wider font-bold",
+                                                                category.gradient ? `text-${category.gradient === 'primary' ? 'purple-500' :
+                                                                    category.gradient === 'success' ? 'green-500' :
+                                                                        category.gradient === 'warning' ? 'orange-500' : 'blue-500'}` : "text-muted-foreground/70"
+                                                            )}>
+                                                                {category.name}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Detail Badges */}
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {/* Status Badge */}
+                                                {statusVal && (
+                                                    <div className={cn(
+                                                        "px-2 py-0.5 rounded-full text-[10px] font-medium border",
+                                                        statusVal === 'Completed' ? "bg-green-500/10 text-green-500 border-green-500/20" :
+                                                            statusVal === 'In Progress' ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+                                                                "bg-muted text-muted-foreground border-border"
+                                                    )}>
+                                                        {statusVal}
+                                                    </div>
+                                                )}
+
+                                                {/* Priority Badge */}
+                                                {priorityVal && (
+                                                    <div className={cn(
+                                                        "px-2 py-0.5 rounded-full text-[10px] font-medium border",
+                                                        priorityVal === 'Urgent' ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                                                            priorityVal === 'High' ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+                                                                "bg-muted text-muted-foreground border-border"
+                                                    )}>
+                                                        {priorityVal}
+                                                    </div>
+                                                )}
+
+                                                {/* Date/Time Display */}
+                                                {dueDateVal && (
+                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-accent/10 rounded-full text-[10px] text-muted-foreground border border-border/50">
+                                                        <Clock className="h-3 w-3" />
+                                                        <span>
+                                                            {(() => {
+                                                                try {
+                                                                    const date = new Date(dueDateVal)
+                                                                    if (isNaN(date.getTime())) return dueDateVal.split('T')[0]
+
+                                                                    // If it contains a real time (not 00:00:00 or 23:59:00 etc)
+                                                                    const hasTime = dueDateVal.includes('T') && !dueDateVal.endsWith('00:00:00.000Z') && !dueDateVal.endsWith('23:59:00.000Z')
+
+                                                                    if (hasTime) {
+                                                                        return format(date, "MMM d, h:mm a")
+                                                                    }
+                                                                    return format(date, "MMM d, yyyy")
+                                                                } catch (e) {
+                                                                    return dueDateVal
+                                                                }
+                                                            })()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Chevron Indicator */}
+                                        <div className="pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground" />
                                         </div>
                                     </div>
                                 </Card>

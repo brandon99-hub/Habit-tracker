@@ -1,10 +1,11 @@
 "use client"
 
-import { use, useState, useEffect } from "react"
+import { use, useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useTasks } from "@/hooks/use-tasks"
+import { useCategories } from "@/hooks/use-categories"
 import { Button } from "@/components/ui/button"
-import { Plus, ArrowLeft, Table as TableIcon, Calendar as CalendarIcon, Search, Grid, User, CheckCircle2 } from "lucide-react"
+import { Plus, ArrowLeft, Table as TableIcon, Calendar as CalendarIcon, Search, Grid, User, CheckCircle2, MoreVertical, Edit2, Trash2 } from "lucide-react"
 import { BottomNav } from "@/components/ui/bottom-nav"
 import { TableView } from "@/components/tasks/table-view"
 import { CalendarView } from "@/components/tasks/calendar-view"
@@ -22,13 +23,17 @@ import { useAuth } from "@/lib/auth-context"
 import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 import type { Page } from "@/lib/tasks/supabase-categories"
-
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 export default function CategoryPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
     const router = useRouter()
     const { user } = useAuth()
-    const { tasks, properties, loading, addTask, editTask, removeTask, updateProperty } = useTasks(id)
+    const { tasks, properties, loading: tasksLoading, addTask, editTask, removeTask, updateProperty } = useTasks(id)
+    const { categories, loading: categoriesLoading, removeCategory } = useCategories()
+    const category = useMemo(() => categories.find(c => c.id === id), [categories, id])
+    const loading = tasksLoading || categoriesLoading
     const [showAddDialog, setShowAddDialog] = useState(false)
     const [view, setView] = useState<"table" | "calendar">("table")
     const [propertyValues, setPropertyValues] = useState<Record<string, Record<string, any>>>({})
@@ -240,18 +245,56 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
             <div className="mx-auto max-w-7xl px-4 py-8">
                 {/* Header */}
                 <header className="mb-8 animate-slide-in">
-                    <Button variant="ghost" size="sm" onClick={() => router.push("/tasks")} className="mb-4 gap-2">
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to Categories
-                    </Button>
+                    <div className="flex items-center justify-between mb-4">
+                        <Button variant="ghost" size="sm" onClick={() => router.push("/tasks")} className="gap-2 text-muted-foreground hover:text-foreground">
+                            <ArrowLeft className="h-4 w-4" />
+                            Back
+                        </Button>
 
-                    <div className="flex items-start justify-between mb-4">
-                        <div>
-                            <h1 className="text-3xl font-bold gradient-text">Tasks</h1>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {sortedTasks.length} of {tasks.length} tasks
-                            </p>
+                        {category && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => {
+                                        if (confirm("Are you sure you want to delete this category and all its tasks?")) {
+                                            removeCategory(category.id).then(() => router.push("/tasks"))
+                                        }
+                                    }} className="text-red-500 focus:text-red-500">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete Category
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            {category?.icon && (
+                                <div className={cn(
+                                    "h-16 w-16 rounded-2xl flex items-center justify-center text-4xl shadow-lg animate-scale-in",
+                                    category.gradient ? `gradient-${category.gradient}` : "bg-muted"
+                                )}>
+                                    {category.icon}
+                                </div>
+                            )}
+                            <div>
+                                <h1 className={cn(
+                                    "text-4xl font-bold mb-1",
+                                    category?.gradient ? `gradient-text` : ""
+                                )}>
+                                    {category?.name || "Tasks"}
+                                </h1>
+                                <p className="text-sm text-muted-foreground">
+                                    {category?.description || `${sortedTasks.length} tasks and properties`}
+                                </p>
+                            </div>
                         </div>
+
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
@@ -267,7 +310,10 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                             </Button>
                             <Button
                                 onClick={() => setShowAddDialog(true)}
-                                className="gap-2 gradient-primary text-white border-0 hover:opacity-90"
+                                className={cn(
+                                    "gap-2 text-white border-0 hover:opacity-90 shadow-md",
+                                    category?.gradient ? `gradient-${category.gradient}` : "bg-primary"
+                                )}
                             >
                                 <Plus className="h-4 w-4" />
                                 Add Task
@@ -323,6 +369,7 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                     onOpenChange={setShowAddDialog}
                     onAdd={handleAddTask}
                     properties={properties}
+                    gradient={category?.gradient || undefined}
                 />
 
                 {/* Task Detail Modal */}
