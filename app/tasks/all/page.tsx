@@ -20,7 +20,6 @@ import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
-import { useSwipeable } from "react-swipeable"
 import { Clock } from "lucide-react"
 
 export default function AllTasksPage() {
@@ -204,22 +203,9 @@ export default function AllTasksPage() {
                             const priorityVal = priorityProp ? taskValues[priorityProp.id] : null
                             const dueDateVal = dueDateProp ? taskValues[dueDateProp.id] : null
 
-                            // Swipe handler for mobile - swipe right to complete
-                            const swipeHandlers = useSwipeable({
-                                onSwipedRight: (e) => {
-                                    e.event.stopPropagation() // Prevent navigation
-                                    if (statusProp) {
-                                        updateProperty(task.id, statusProp.id, "Done")
-                                    }
-                                },
-                                trackMouse: false,
-                                preventScrollOnSwipe: true,
-                            })
-
                             return (
                                 <Card
                                     key={task.id}
-                                    {...swipeHandlers}
                                     className="p-4 transition-all hover:bg-accent/5 cursor-pointer border border-border/50 group"
                                     onClick={() => router.push(`/tasks/category/${task.category_id}`)}
                                 >
