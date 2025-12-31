@@ -1,10 +1,17 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 
 export function PWAInstaller() {
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
     const [showInstallPrompt, setShowInstallPrompt] = useState(false)
+    const pathname = usePathname()
+
+    // Determine current app context
+    const isTaskApp = pathname?.startsWith("/tasks")
+    const appName = isTaskApp ? "TaskFlow" : "HabitForge"
+    const installText = isTaskApp ? "Install TaskFlow" : "Install HabitForge"
 
     useEffect(() => {
         // Register service worker
@@ -66,7 +73,7 @@ export function PWAInstaller() {
             <div className="flex items-start gap-3">
                 <img src="/logo-nobackground.png" alt="HabitForge" className="h-12 w-12" />
                 <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">Install HabitForge</h3>
+                    <h3 className="font-semibold text-foreground">{installText}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                         Add to your home screen for quick access and notifications
                     </p>

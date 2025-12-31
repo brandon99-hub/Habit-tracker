@@ -1,0 +1,41 @@
+{
+    "name": "TaskFlow",
+    "short_name": "TaskFlow",
+    "description": "Track tasks, projects, and recurring goals.",
+    "start_url": "/tasks",
+    "scope": "/tasks",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#000000",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/logo.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/logo.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/logo-nobackground.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "/logo-nobackground.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "categories": [
+        "productivity",
+        "business"
+    ]
+}
