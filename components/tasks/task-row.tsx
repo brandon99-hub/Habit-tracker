@@ -258,6 +258,14 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
                                     }}
                                     className="h-8 px-2 text-sm border rounded bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
                                 />
+
+                                {/* Overdue Indicator - Red Dot */}
+                                {new Date(propertyValues[dueDateProperty.id]) < new Date() && (
+                                    <div
+                                        className="w-2 h-2 bg-red-500 rounded-full animate-pulse"
+                                        title="Overdue"
+                                    />
+                                )}
                             </div>
                         )}
                     </div>

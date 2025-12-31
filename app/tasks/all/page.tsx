@@ -13,13 +13,14 @@ import { Card } from "@/components/ui/card"
 import { TaskIcon } from "@/components/tasks/task-icon"
 import { TaskFilters, type FilterOptions } from "@/components/tasks/task-filters"
 import { TaskSort, type SortOption } from "@/components/tasks/task-sort"
-import { getPages, getProperties, getPropertyValues, type Page, type Property } from "@/lib/tasks/supabase-categories"
+import { getPages, getProperties, getPropertyValues, type Page, type Property, deletePage } from "@/lib/tasks/supabase-categories"
 import { setPropertyValue } from "@/lib/tasks/supabase-categories"
 import { getRecurringTask } from "@/lib/tasks/recurring-service"
 import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { useSwipeable } from "react-swipeable"
 import { Clock } from "lucide-react"
 
 export default function AllTasksPage() {
@@ -108,6 +109,16 @@ export default function AllTasksPage() {
                     [propertyId]: value
                 }
             }))
+        }
+    }
+
+    // Function to delete a task
+    const deleteTask = async (taskId: string) => {
+        const { error } = await deletePage(taskId)
+
+        if (!error) {
+            // Remove from local state
+            setAllTasks(prev => prev.filter(t => t.id !== taskId))
         }
     }
 
@@ -202,10 +213,28 @@ export default function AllTasksPage() {
                             const statusVal = statusProp ? taskValues[statusProp.id] : null
                             const priorityVal = priorityProp ? taskValues[priorityProp.id] : null
                             const dueDateVal = dueDateProp ? taskValues[dueDateProp.id] : null
+                            const isOverdue = dueDateVal && new Date(dueDateVal) < new Date()
+
+                            // Create swipe handlers outside of JSX
+                            const taskSwipeHandlers = useSwipeable({
+                                onSwipedLeft: (e) => {
+                                    e.event.stopPropagation()
+                                    deleteTask(task.id)
+                                },
+                                onSwipedRight: (e) => {
+                                    e.event.stopPropagation()
+                                    if (statusProp) {
+                                        updateProperty(task.id, statusProp.id, "Done")
+                                    }
+                                },
+                                trackMouse: false,
+                                preventScrollOnSwipe: true,
+                            })
 
                             return (
                                 <Card
                                     key={task.id}
+                                    {...taskSwipeHandlers}
                                     className="p-4 transition-all hover:bg-accent/5 cursor-pointer border border-border/50 group"
                                     onClick={() => router.push(`/tasks/category/${task.category_id}`)}
                                 >
@@ -292,6 +321,13 @@ export default function AllTasksPage() {
                                                                 }
                                                             })()}
                                                         </span>
+                                                        {/* Overdue Indicator - Red Dot */}
+                                                        {isOverdue && (
+                                                            <div
+                                                                className="w-2 h-2 bg-red-500 rounded-full animate-pulse"
+                                                                title="Overdue"
+                                                            />
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

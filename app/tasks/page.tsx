@@ -33,13 +33,12 @@ export default function TasksPage() {
     const { subscribe, isSubscribed } = usePushSubscription()
 
     useEffect(() => {
-        // Auto-subscribe user if not already subscribed
-        if (!isSubscribed) {
-            // In a real app, we might want a UI button for this
-            // For now, we request it on load to solve the immediate issue
+        // Only auto-subscribe in production (not on localhost)
+        // Users can manually enable from Profile page
+        if (!isSubscribed && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
             subscribe()
         }
-    }, [isSubscribed]) // Removed `subscribe` from deps to avoid loop if implementation changes
+    }, [isSubscribed])
 
     useEffect(() => {
         async function fetchStats() {
