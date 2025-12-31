@@ -267,11 +267,13 @@ export function AddTaskDialog({ open, onOpenChange, onAdd, properties, gradient 
                                         </Popover>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Time (optional)</Label>
-                                        <TimePicker
+                                        <Label htmlFor="time">Time</Label>
+                                        <input
+                                            id="time"
+                                            type="time"
                                             value={time}
-                                            onTimeChange={setTime}
-                                            className="w-full"
+                                            onChange={(e) => setTime(e.target.value)}
+                                            className="h-10 px-3 text-sm border rounded-md bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
                                         />
                                     </div>
                                 </div>

@@ -195,6 +195,8 @@ export async function setPropertyValue(pageId: string, propertyId: string, value
             page_id: pageId,
             property_id: propertyId,
             value,
+        }, {
+            onConflict: 'page_id,property_id'  // Specify which columns define uniqueness
         })
         .select()
         .single()

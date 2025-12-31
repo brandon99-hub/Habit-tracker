@@ -12,7 +12,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
+import { useSwipeable } from "react-swipeable"
 import type { Page, Property } from "@/lib/tasks/supabase-categories"
 import { getPropertyValues } from "@/lib/tasks/supabase-categories"
 import { TaskIcon } from "./task-icon"
@@ -60,8 +62,19 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
     const priorityProperty = properties.find((p) => p.name === "Priority")
     const dueDateProperty = properties.find((p) => p.name === "Due Date")
 
+    // Swipe handler for mobile - swipe right to complete
+    const swipeHandlers = useSwipeable({
+        onSwipedRight: () => {
+            if (statusProperty) {
+                handlePropertyChange(statusProperty.id, "Done")
+            }
+        },
+        trackMouse: false, // Only track touch, not mouse
+        preventScrollOnSwipe: true,
+    })
+
     return (
-        <Card className="p-3 sm:p-4 transition-all hover:bg-accent/5">
+        <Card {...swipeHandlers} className="p-3 sm:p-4 transition-all hover:bg-accent/5">
             <div className="flex gap-3 items-start">
                 {/* Icon Column - Fixed width */}
                 <div className="pt-1 flex-shrink-0">
@@ -219,7 +232,8 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
 
                                 <div className="w-[1px] h-4 bg-border/50 mx-1" />
 
-                                <TimePicker
+                                <input
+                                    type="time"
                                     value={(() => {
                                         const iso = propertyValues[dueDateProperty.id]
                                         if (!iso || !iso.includes('T')) return ""
@@ -227,7 +241,10 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
                                         if (isNaN(date.getTime())) return ""
                                         return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
                                     })()}
-                                    onTimeChange={(newTime) => {
+                                    onChange={(e) => {
+                                        const newTime = e.target.value
+                                        if (!newTime) return
+
                                         const currentIso = propertyValues[dueDateProperty.id]
                                         if (!currentIso) return
 
@@ -239,7 +256,7 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
 
                                         handlePropertyChange(dueDateProperty.id, dateObj.toISOString())
                                     }}
-                                    className="h-6 w-[85px] border-0 bg-transparent p-0 text-xs focus-visible:ring-0 shadow-none"
+                                    className="h-8 px-2 text-sm border rounded bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
                                 />
                             </div>
                         )}

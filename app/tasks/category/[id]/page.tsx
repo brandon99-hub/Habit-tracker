@@ -105,6 +105,24 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
         setRecurringTasks(recurring)
     }
 
+    // Wrapper for updateProperty that also updates local state
+    const handleUpdateProperty = async (pageId: string, propertyId: string, value: any) => {
+        const result = await updateProperty(pageId, propertyId, value)
+
+        // Update local state immediately for instant UI feedback
+        if (!result.error) {
+            setPropertyValues(prev => ({
+                ...prev,
+                [pageId]: {
+                    ...(prev[pageId] || {}),
+                    [propertyId]: value
+                }
+            }))
+        }
+
+        return result
+    }
+
     useEffect(() => {
         if (tasks.length > 0) {
             fetchAllData()
@@ -399,7 +417,7 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                         properties={properties}
                         onEditTask={editTask}
                         onDeleteTask={removeTask}
-                        onUpdateProperty={updateProperty}
+                        onUpdateProperty={handleUpdateProperty}
                     />
                 ) : (
                     <CalendarView

@@ -13,13 +13,14 @@ import { Card } from "@/components/ui/card"
 import { TaskIcon } from "@/components/tasks/task-icon"
 import { TaskFilters, type FilterOptions } from "@/components/tasks/task-filters"
 import { TaskSort, type SortOption } from "@/components/tasks/task-sort"
-import { getPropertyValues } from "@/lib/tasks/supabase-categories"
+import { getPages, getProperties, getPropertyValues, type Page, type Property } from "@/lib/tasks/supabase-categories"
+import { setPropertyValue } from "@/lib/tasks/supabase-categories"
 import { getRecurringTask } from "@/lib/tasks/recurring-service"
 import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
-import type { Page } from "@/lib/tasks/supabase-categories"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { useSwipeable } from "react-swipeable"
 import { Clock } from "lucide-react"
 
 export default function AllTasksPage() {
@@ -93,7 +94,23 @@ export default function AllTasksPage() {
         }
 
         fetchAllTasks()
-    }, [user])
+    }, [categories, selectedCategory])
+
+    // Function to update a property value
+    const updateProperty = async (pageId: string, propertyId: string, value: any) => {
+        const { error } = await setPropertyValue(pageId, propertyId, value)
+
+        if (!error) {
+            // Update local state
+            setPropertyValues(prev => ({
+                ...prev,
+                [pageId]: {
+                    ...(prev[pageId] || {}),
+                    [propertyId]: value
+                }
+            }))
+        }
+    }
 
     // Apply category filter first
     const categoryFilteredTasks = selectedCategory === "all"
@@ -187,9 +204,22 @@ export default function AllTasksPage() {
                             const priorityVal = priorityProp ? taskValues[priorityProp.id] : null
                             const dueDateVal = dueDateProp ? taskValues[dueDateProp.id] : null
 
+                            // Swipe handler for mobile - swipe right to complete
+                            const swipeHandlers = useSwipeable({
+                                onSwipedRight: (e) => {
+                                    e.event.stopPropagation() // Prevent navigation
+                                    if (statusProp) {
+                                        updateProperty(task.id, statusProp.id, "Done")
+                                    }
+                                },
+                                trackMouse: false,
+                                preventScrollOnSwipe: true,
+                            })
+
                             return (
                                 <Card
                                     key={task.id}
+                                    {...swipeHandlers}
                                     className="p-4 transition-all hover:bg-accent/5 cursor-pointer border border-border/50 group"
                                     onClick={() => router.push(`/tasks/category/${task.category_id}`)}
                                 >
