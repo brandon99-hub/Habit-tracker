@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation"
 import { useTasks } from "@/hooks/use-tasks"
 import { useCategories } from "@/hooks/use-categories"
 import { Button } from "@/components/ui/button"
-import { Plus, ArrowLeft, Table as TableIcon, Calendar as CalendarIcon, Search, Grid, User, CheckCircle2, MoreVertical, Edit2, Trash2 } from "lucide-react"
+import { Plus, ArrowLeft, Table as TableIcon, Calendar as CalendarIcon, Search, Grid, User, CheckCircle2, MoreVertical, Edit2, Trash2, X } from "lucide-react"
 import { BottomNav } from "@/components/ui/bottom-nav"
 import { TableView } from "@/components/tasks/table-view"
 import { CalendarView } from "@/components/tasks/calendar-view"
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog"
 import { TaskDetailModal } from "@/components/tasks/task-detail-modal"
-import { GlobalSearch } from "@/components/tasks/global-search"
+import { Input } from "@/components/ui/input"
 import { TaskFilters, type FilterOptions } from "@/components/tasks/task-filters"
 import { TaskSort, type SortOption } from "@/components/tasks/task-sort"
 import { RecurringTaskDialog } from "@/components/tasks/recurring-task-dialog"
@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth-context"
 import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { FloatingActionButton } from "@/components/ui/floating-action-button"
 import { cn } from "@/lib/utils"
 import type { Page } from "@/lib/tasks/supabase-categories"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -40,7 +41,8 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
     const [recurringTasks, setRecurringTasks] = useState<Record<string, any>>({})
     const [selectedTask, setSelectedTask] = useState<Page | null>(null)
     const [showTaskDetail, setShowTaskDetail] = useState(false)
-    const [showSearch, setShowSearch] = useState(false)
+    const [isSearchOpen, setIsSearchOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState("")
     const [showRecurringDialog, setShowRecurringDialog] = useState(false)
     const [showReminderDialog, setShowReminderDialog] = useState(false)
     const [recurringTaskId, setRecurringTaskId] = useState<string>("")
@@ -65,7 +67,11 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "k") {
                 e.preventDefault()
-                setShowSearch(true)
+                if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+                    e.preventDefault()
+                    setIsSearchOpen(true)
+                    // Focus will be handled by autoFocus on input
+                }
             }
         }
         window.addEventListener("keydown", handleKeyDown)
@@ -227,7 +233,21 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
 
     // Apply filters and sorting
     const filteredTasks = filterTasks(tasks, filters, propertyValues, properties, recurringTasks)
-    const sortedTasks = sortTasks(filteredTasks, sort, propertyValues, properties)
+
+    // Apply search query filter
+    const searchedTasks = useMemo(() => {
+        if (!searchQuery.trim()) return filteredTasks
+        const query = searchQuery.toLowerCase()
+        return filteredTasks.filter(task => {
+            if (task.title.toLowerCase().includes(query)) return true
+            const taskProps = propertyValues[task.id] || {}
+            return Object.values(taskProps).some(val =>
+                String(val).toLowerCase().includes(query)
+            )
+        })
+    }, [filteredTasks, searchQuery, propertyValues])
+
+    const sortedTasks = sortTasks(searchedTasks, sort, propertyValues, properties)
 
     if (loading) {
         return (
@@ -245,79 +265,107 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
             <div className="mx-auto max-w-7xl px-4 py-8">
                 {/* Header */}
                 <header className="mb-8 animate-slide-in">
-                    <div className="flex items-center justify-between mb-4">
-                        <Button variant="ghost" size="sm" onClick={() => router.push("/tasks")} className="gap-2 text-muted-foreground hover:text-foreground">
-                            <ArrowLeft className="h-4 w-4" />
-                            Back
+                    <div className="flex items-center justify-between mb-6">
+                        <Button variant="ghost" size="sm" onClick={() => router.push("/tasks")} className="gap-2 text-muted-foreground hover:text-foreground p-0 h-auto">
+                            <ArrowLeft className="h-5 w-5" />
+                            <span className="text-base">Back</span>
                         </Button>
 
-                        {category && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                        <MoreVertical className="h-4 w-4" />
+                        <div className="flex items-center gap-1 relative">
+                            {/* Mobile Search Icon */}
+                            {!isSearchOpen ? (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsSearchOpen(true)}
+                                    className="h-9 w-9 p-0"
+                                >
+                                    <Search className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                            ) : (
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center animate-in fade-in slide-in-from-right-5 duration-200">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="Search tasks..."
+                                            className="h-9 w-[calc(100vw-180px)] md:w-64 pl-9 pr-9 bg-background/95 backdrop-blur border shadow-lg rounded-full"
+                                            autoFocus
+                                            onBlur={() => !searchQuery && setIsSearchOpen(false)}
+                                        />
+                                        {searchQuery && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setSearchQuery("")}
+                                                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 rounded-full hover:bg-background/50"
+                                            >
+                                                <X className="h-4 w-4 text-muted-foreground" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                            setIsSearchOpen(false)
+                                            setSearchQuery("")
+                                        }}
+                                        className="ml-2 h-9 w-9 p-0 rounded-full hover:bg-muted"
+                                    >
+                                        <X className="h-4 w-4 text-muted-foreground" />
                                     </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => {
-                                        if (confirm("Are you sure you want to delete this category and all its tasks?")) {
-                                            removeCategory(category.id).then(() => router.push("/tasks"))
-                                        }
-                                    }} className="text-red-500 focus:text-red-500">
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Delete Category
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        )}
+                                </div>
+                            )}
+
+                            {category && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => {
+                                            if (confirm("Are you sure you want to delete this category and all its tasks?")) {
+                                                removeCategory(category.id).then(() => router.push("/tasks"))
+                                            }
+                                        }} className="text-red-500 focus:text-red-500">
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Delete Category
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
                             {category?.icon && (
                                 <div className={cn(
-                                    "h-16 w-16 rounded-2xl flex items-center justify-center text-4xl shadow-lg animate-scale-in",
+                                    "h-14 w-14 sm:h-16 sm:w-16 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-lg animate-scale-in flex-shrink-0",
                                     category.gradient ? `gradient-${category.gradient}` : "bg-muted"
                                 )}>
                                     {category.icon}
                                 </div>
                             )}
-                            <div>
+                            <div className="min-w-0">
                                 <h1 className={cn(
-                                    "text-4xl font-bold mb-1",
+                                    "text-3xl sm:text-4xl font-bold mb-0.5 truncate",
                                     category?.gradient ? `gradient-text` : ""
                                 )}>
                                     {category?.name || "Tasks"}
                                 </h1>
-                                <p className="text-sm text-muted-foreground">
-                                    {category?.description || `${sortedTasks.length} tasks and properties`}
+                                <p className="text-sm text-muted-foreground truncate">
+                                    {category?.description || `${sortedTasks.length} tasks`}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowSearch(true)}
-                                className="gap-2 hidden md:flex"
-                            >
-                                <Search className="h-4 w-4" />
-                                Search
-                                <kbd className="ml-2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">⌘</span>K
-                                </kbd>
-                            </Button>
-                            <Button
-                                onClick={() => setShowAddDialog(true)}
-                                className={cn(
-                                    "gap-2 text-white border-0 hover:opacity-90 shadow-md",
-                                    category?.gradient ? `gradient-${category.gradient}` : "bg-primary"
-                                )}
-                            >
-                                <Plus className="h-4 w-4" />
-                                Add Task
-                            </Button>
+                        <div className="flex items-center gap-2 relative">
+                            {/* Actions removed - moved to Header Actions and FAB */}
                         </div>
                     </div>
 
@@ -381,14 +429,6 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                 />
 
                 {/* Global Search */}
-                <GlobalSearch
-                    open={showSearch}
-                    onOpenChange={setShowSearch}
-                    tasks={tasks}
-                    properties={properties}
-                    propertyValues={propertyValues}
-                    onTaskClick={handleTaskClick}
-                />
 
                 {/* Recurring Task Dialog */}
                 <RecurringTaskDialog
@@ -411,6 +451,16 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                     onOpenChange={setShowReminderDialog}
                     taskId={reminderTaskId}
                     dueDate={reminderDueDate}
+                />
+
+                {/* Floating Action Button (Mobile) */}
+                <FloatingActionButton
+                    icon={Plus}
+                    onClick={() => setShowAddDialog(true)}
+                    position="bottom-right"
+                    gradient={category?.gradient as any || "primary"}
+                    label="Add"
+                    className="mb-20"
                 />
 
                 {/* Bottom Navigation */}

@@ -230,6 +230,6 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
                     </Button>
                 </DialogFooter>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     )
 }

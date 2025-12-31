@@ -37,6 +37,7 @@ export function TaskDetailModal({ open, onOpenChange, task, onUpdate }: Props) {
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
+                    <DialogTitle className="sr-only">Task Details</DialogTitle>
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
                             <Input
