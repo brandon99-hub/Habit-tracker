@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
             // Fetch task details
             const { data: taskData, error: taskError } = await supabase
                 .from("task_pages")
-                .select("id, title, database_id")
+                .select("id, title, category_id")
                 .eq("id", reminder.page_id)
                 .single()
 
@@ -112,8 +112,8 @@ export async function GET(request: NextRequest) {
             for (const sub of subs) {
                 try {
                     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
-                    const targetUrl = taskData.database_id
-                        ? `${siteUrl}/tasks/category/${taskData.database_id}`
+                    const targetUrl = taskData.category_id
+                        ? `${siteUrl}/tasks/category/${taskData.category_id}`
                         : `${siteUrl}/tasks`
 
                     const payload = JSON.stringify({
