@@ -86,16 +86,8 @@ export default function ProfilePage() {
     }
 
 
-    const handleToggleNotifications = async () => {
-        if (isSubscribed) {
-            // Already subscribed, show message
-            toast({
-                title: "Already Subscribed",
-                description: "You're already receiving push notifications",
-            })
-            return
-        }
 
+    const handleToggleNotifications = async () => {
         // Request permission and subscribe
         if ("Notification" in window) {
             const permission = await Notification.requestPermission()
