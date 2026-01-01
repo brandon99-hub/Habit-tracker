@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { sendNotification } from "@/lib/web-push"
+import { logNotificationDebug } from "@/lib/notification-logger"
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,11 @@ export async function GET(request: NextRequest) {
     try {
         const now = new Date()
 
+        // Log cron start
+        await logNotificationDebug(supabase, 'cron_check', 'info', 'Cron job started', {
+            metadata: { timestamp: now.toISOString() }
+        })
+
         // 1. Fetch due reminders that haven't been sent
         const { data: reminders, error: reminderError } = await supabase
             .from("task_reminders")
@@ -41,15 +47,22 @@ export async function GET(request: NextRequest) {
 
         if (reminderError) {
             console.error("Error fetching reminders", reminderError)
+            await logNotificationDebug(supabase, 'error', 'failed', 'Failed to fetch reminders', {
+                errorDetails: reminderError
+            })
             return NextResponse.json({ error: reminderError.message }, { status: 500 })
         }
 
         if (!reminders || reminders.length === 0) {
             console.log("No reminders to process")
+            await logNotificationDebug(supabase, 'cron_check', 'info', 'No reminders to process')
             return NextResponse.json({ success: true, count: 0, message: "No reminders due" })
         }
 
         console.log(`Processing ${reminders.length} reminder(s)`)
+        await logNotificationDebug(supabase, 'cron_check', 'info', `Found ${reminders.length} reminder(s) to process`, {
+            metadata: { count: reminders.length }
+        })
 
         const results = []
 
@@ -66,6 +79,11 @@ export async function GET(request: NextRequest) {
 
             if (taskError || !taskData) {
                 console.error(`Task not found for reminder ${reminder.id}:`, taskError)
+                await logNotificationDebug(supabase, 'error', 'warning', 'Task not found for reminder', {
+                    taskId: reminder.page_id,
+                    userId: userId,
+                    errorDetails: taskError
+                })
                 // Mark as sent to avoid retrying deleted tasks
                 await supabase
                     .from("task_reminders")
@@ -82,6 +100,11 @@ export async function GET(request: NextRequest) {
 
             if (subError || !subs || subs.length === 0) {
                 console.log(`No subscription found for user ${userId}`)
+                await logNotificationDebug(supabase, 'error', 'warning', 'No push subscription found for user', {
+                    userId: userId,
+                    taskId: taskData.id,
+                    metadata: { taskTitle: taskData.title }
+                })
                 continue
             }
 
@@ -104,11 +127,28 @@ export async function GET(request: NextRequest) {
                     })
 
                     console.log(`Sending notification for task: "${taskData.title}" to endpoint: ${sub.subscription.endpoint.substring(0, 50)}...`)
+
                     await sendNotification(sub.subscription as any, payload)
+
                     console.log(`✅ Notification sent successfully for task: "${taskData.title}"`)
+                    await logNotificationDebug(supabase, 'notification_sent', 'success', `Notification sent for task: ${taskData.title}`, {
+                        userId: userId,
+                        taskId: taskData.id,
+                        metadata: {
+                            taskTitle: taskData.title,
+                            endpoint: sub.subscription.endpoint.substring(0, 50)
+                        }
+                    })
+
                     results.push({ id: reminder.id, status: "sent", task: taskData.title })
                 } catch (err: any) {
                     console.error(`❌ Error sending notification for task "${taskData.title}":`, err.message || err)
+                    await logNotificationDebug(supabase, 'notification_failed', 'failed', `Failed to send notification for task: ${taskData.title}`, {
+                        userId: userId,
+                        taskId: taskData.id,
+                        errorDetails: { message: err.message, stack: err.stack },
+                        metadata: { taskTitle: taskData.title }
+                    })
                     results.push({ id: reminder.id, status: "failed", task: taskData.title, error: err.message })
                     // If 410 Gone, we should delete the subscription (todo)
                 }
@@ -126,6 +166,10 @@ export async function GET(request: NextRequest) {
 
         console.log(`\n📊 Summary: ${successCount} sent, ${failCount} failed out of ${results.length} total`)
 
+        await logNotificationDebug(supabase, 'cron_check', 'info', `Cron completed: ${successCount} sent, ${failCount} failed`, {
+            metadata: { total: results.length, sent: successCount, failed: failCount }
+        })
+
         return NextResponse.json({
             success: true,
             total: results.length,
@@ -134,6 +178,9 @@ export async function GET(request: NextRequest) {
             processed: results
         })
     } catch (error: any) {
+        await logNotificationDebug(supabase, 'error', 'failed', 'Cron job exception', {
+            errorDetails: { message: error.message, stack: error.stack }
+        })
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }

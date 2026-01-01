@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { logNotificationDebug } from "@/lib/notification-logger"
 
 export async function POST(request: NextRequest) {
+    // Create Supabase client for logging
+    const supabaseForLogging = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
     try {
         // Get auth token from request headers
         const authHeader = request.headers.get('authorization')
 
         if (!authHeader) {
             console.error("❌ No authorization header found")
+            await logNotificationDebug(supabaseForLogging, 'subscription', 'failed', 'No authorization header')
             return NextResponse.json({ error: "Unauthorized - No auth header" }, { status: 401 })
         }
 
@@ -28,6 +36,9 @@ export async function POST(request: NextRequest) {
 
         if (userError || !user) {
             console.error("❌ Auth error:", userError)
+            await logNotificationDebug(supabaseForLogging, 'subscription', 'failed', 'Invalid auth token', {
+                errorDetails: userError
+            })
             return NextResponse.json({ error: "Unauthorized - Invalid token" }, { status: 401 })
         }
 
@@ -35,12 +46,19 @@ export async function POST(request: NextRequest) {
 
         if (!subscription) {
             console.error("❌ No subscription in request body")
+            await logNotificationDebug(supabaseForLogging, 'subscription', 'failed', 'No subscription in request', {
+                userId: user.id
+            })
             return NextResponse.json({ error: "Subscription required" }, { status: 400 })
         }
 
         // Validate subscription structure
         if (!subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth) {
             console.error("❌ Invalid subscription structure:", subscription)
+            await logNotificationDebug(supabaseForLogging, 'subscription', 'failed', 'Invalid subscription structure', {
+                userId: user.id,
+                errorDetails: { subscription }
+            })
             return NextResponse.json({ error: "Invalid subscription format" }, { status: 400 })
         }
 
@@ -60,15 +78,31 @@ export async function POST(request: NextRequest) {
             // Check for unique constraint violation (code 23505)
             if (error.code === '23505') {
                 console.log("ℹ️  Subscription already exists (duplicate)")
+                await logNotificationDebug(supabaseForLogging, 'subscription', 'info', 'Subscription already exists (duplicate)', {
+                    userId: user.id,
+                    metadata: { endpoint: subscription.endpoint.substring(0, 50) }
+                })
                 return NextResponse.json({ success: true, message: "Already subscribed" })
             }
+            await logNotificationDebug(supabaseForLogging, 'subscription', 'failed', 'Database error saving subscription', {
+                userId: user.id,
+                errorDetails: error
+            })
             throw error
         }
 
         console.log("✅ Subscription saved successfully")
+        await logNotificationDebug(supabaseForLogging, 'subscription', 'success', 'Subscription saved successfully', {
+            userId: user.id,
+            metadata: { endpoint: subscription.endpoint.substring(0, 50) }
+        })
+
         return NextResponse.json({ success: true })
     } catch (error: any) {
         console.error("❌ Subscribe endpoint error:", error)
+        await logNotificationDebug(supabaseForLogging, 'error', 'failed', 'Subscribe endpoint exception', {
+            errorDetails: { message: error.message, stack: error.stack }
+        })
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }
