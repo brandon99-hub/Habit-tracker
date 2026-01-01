@@ -110,7 +110,7 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
                     onDelete(task.id)
                 } else if (statusProperty) {
                     // Swiped right - complete
-                    handlePropertyChange(statusProperty.id, "Done")
+                    handlePropertyChange(statusProperty.id, "Completed")
                 }
             }
 
@@ -302,7 +302,10 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
                                     value={propertyValues[statusProperty.id] || "Not Started"}
                                     onValueChange={(value) => handlePropertyChange(statusProperty.id, value)}
                                 >
-                                    <SelectTrigger className="h-7 w-[130px] text-xs border-dashed bg-transparent hover:bg-accent/50">
+                                    <SelectTrigger className={cn(
+                                        "h-7 w-[130px] text-xs border-dashed bg-transparent hover:bg-accent/50",
+                                        propertyValues[statusProperty.id] === 'Completed' && "text-green-600 font-medium"
+                                    )}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -340,61 +343,66 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
 
                             {/* Due Date & Time Group */}
                             {dueDateProperty && (
-                                <div className="flex items-center gap-1 bg-accent/10 rounded-md p-0.5 px-2 border border-border/50">
-                                    <Input
-                                        type="date"
-                                        value={propertyValues[dueDateProperty.id]?.split('T')[0] || ""}
-                                        onChange={(e) => {
-                                            const dateStr = e.target.value
-                                            const currentIso = propertyValues[dueDateProperty.id]
+                                <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1 bg-accent/10 rounded-md p-0.5 px-2 border border-border/50">
+                                        <Input
+                                            type="date"
+                                            value={propertyValues[dueDateProperty.id]?.split('T')[0] || ""}
+                                            onChange={(e) => {
+                                                const dateStr = e.target.value
+                                                const currentIso = propertyValues[dueDateProperty.id]
 
-                                            if (currentIso && dateStr) {
-                                                const timePart = currentIso.split('T')[1] || '00:00:00.000Z'
-                                                const newIso = `${dateStr}T${timePart}`
-                                                handlePropertyChange(dueDateProperty.id, newIso)
-                                            } else {
-                                                handlePropertyChange(dueDateProperty.id, dateStr)
-                                            }
-                                        }}
-                                        className="h-6 w-auto min-w-[110px] border-0 bg-transparent p-0 text-xs focus-visible:ring-0 shadow-none cursor-pointer"
-                                    />
-
-                                    <div className="w-[1px] h-4 bg-border/50 mx-1" />
-
-                                    <input
-                                        type="time"
-                                        value={(() => {
-                                            const iso = propertyValues[dueDateProperty.id]
-                                            if (!iso || !iso.includes('T')) return ""
-                                            const date = new Date(iso)
-                                            if (isNaN(date.getTime())) return ""
-                                            return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
-                                        })()}
-                                        onChange={(e) => {
-                                            const newTime = e.target.value
-                                            if (!newTime) return
-
-                                            const currentIso = propertyValues[dueDateProperty.id]
-                                            if (!currentIso) return
-
-                                            const datePart = currentIso.split('T')[0]
-                                            const [hours, minutes] = newTime.split(':')
-                                            const dateObj = new Date(currentIso.includes('T') ? currentIso : `${datePart}T00:00:00`)
-                                            dateObj.setHours(parseInt(hours))
-                                            dateObj.setMinutes(parseInt(minutes))
-
-                                            handlePropertyChange(dueDateProperty.id, dateObj.toISOString())
-                                        }}
-                                        className="h-8 px-2 text-sm border rounded bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                    />
-
-                                    {/* Overdue Indicator - Red Dot */}
-                                    {new Date(propertyValues[dueDateProperty.id]) < new Date() && (
-                                        <div
-                                            className="w-2 h-2 bg-red-500 rounded-full animate-pulse"
-                                            title="Overdue"
+                                                if (currentIso && dateStr) {
+                                                    const timePart = currentIso.split('T')[1] || '00:00:00.000Z'
+                                                    const newIso = `${dateStr}T${timePart}`
+                                                    handlePropertyChange(dueDateProperty.id, newIso)
+                                                } else {
+                                                    handlePropertyChange(dueDateProperty.id, dateStr)
+                                                }
+                                            }}
+                                            className="h-6 w-auto min-w-[110px] border-0 bg-transparent p-0 text-xs focus-visible:ring-0 shadow-none cursor-pointer"
                                         />
-                                    )}
+
+                                        <div className="w-[1px] h-4 bg-border/50 mx-1" />
+
+                                        <input
+                                            type="time"
+                                            value={(() => {
+                                                const iso = propertyValues[dueDateProperty.id]
+                                                if (!iso || !iso.includes('T')) return ""
+                                                const date = new Date(iso)
+                                                if (isNaN(date.getTime())) return ""
+                                                return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+                                            })()}
+                                            onChange={(e) => {
+                                                const newTime = e.target.value
+                                                if (!newTime) return
+
+                                                const currentIso = propertyValues[dueDateProperty.id]
+                                                if (!currentIso) return
+
+                                                const datePart = currentIso.split('T')[0]
+                                                const [hours, minutes] = newTime.split(':')
+                                                const dateObj = new Date(currentIso.includes('T') ? currentIso : `${datePart}T00:00:00`)
+                                                dateObj.setHours(parseInt(hours))
+                                                dateObj.setMinutes(parseInt(minutes))
+
+                                                handlePropertyChange(dueDateProperty.id, dateObj.toISOString())
+                                            }}
+                                            className="h-8 px-2 text-sm border rounded bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                        />
+                                    </div>
+
+                                    {/* Overdue Indicator - Red Dot (outside container, hidden when completed) */}
+                                    {propertyValues[dueDateProperty.id] &&
+                                        statusProperty &&
+                                        propertyValues[statusProperty.id] !== 'Completed' &&
+                                        new Date(propertyValues[dueDateProperty.id]) < new Date() && (
+                                            <div
+                                                className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0"
+                                                title="Overdue"
+                                            />
+                                        )}
                                 </div>
                             )}
                         </div>

@@ -70,10 +70,10 @@ export async function GET(request: NextRequest) {
         for (const reminder of reminders) {
             const userId = reminder.user_id
 
-            // Fetch task details
+            // Fetch task details with properties
             const { data: taskData, error: taskError } = await supabase
                 .from("task_pages")
-                .select("id, title, category_id")
+                .select("id, title, category_id, icon")
                 .eq("id", reminder.page_id)
                 .single()
 
@@ -92,6 +92,26 @@ export async function GET(request: NextRequest) {
                 continue
             }
 
+            // Fetch task properties (priority and due date)
+            const { data: propertyValues } = await supabase
+                .from("task_property_values")
+                .select("property_id, value, task_properties(name)")
+                .eq("page_id", taskData.id)
+
+            let priority = "Medium"
+            let dueDate: Date | null = null
+
+            if (propertyValues) {
+                for (const pv of propertyValues) {
+                    if ((pv as any).task_properties?.name === "Priority") {
+                        priority = pv.value
+                    }
+                    if ((pv as any).task_properties?.name === "Due Date") {
+                        dueDate = new Date(pv.value)
+                    }
+                }
+            }
+
             // 3. Get user's push subscription
             const { data: subs, error: subError } = await supabase
                 .from("user_push_subscriptions")
@@ -108,7 +128,43 @@ export async function GET(request: NextRequest) {
                 continue
             }
 
-            // 4. Send notification to all user's devices
+            // 4. Create enhanced notification content
+            const nowTime = new Date()
+            let body = "This task is due soon!"
+            let titlePrefix = ""
+            let vibrationPattern = [200, 100, 200]
+            let requireInteraction = false
+
+            // Calculate time-based message
+            if (dueDate) {
+                const minutesUntilDue = Math.round((dueDate.getTime() - nowTime.getTime()) / 60000)
+
+                if (minutesUntilDue < 0) {
+                    body = "This task is overdue!"
+                    titlePrefix = "⚠️ "
+                } else if (minutesUntilDue < 60) {
+                    body = `Due in ${minutesUntilDue} minute${minutesUntilDue !== 1 ? 's' : ''}!`
+                } else if (minutesUntilDue < 1440) {
+                    const hours = Math.round(minutesUntilDue / 60)
+                    body = `Due in ${hours} hour${hours !== 1 ? 's' : ''}!`
+                } else {
+                    const hours = dueDate.getHours()
+                    const minutes = dueDate.getMinutes()
+                    const timeStr = `${hours % 12 || 12}:${minutes.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`
+                    body = `Due today at ${timeStr}`
+                }
+            }
+
+            // Add priority prefix and adjust notification behavior
+            if (priority === 'Urgent') {
+                titlePrefix = "🔴 "
+                vibrationPattern = [200, 100, 200, 100, 200]
+                requireInteraction = true
+            } else if (priority === 'High') {
+                titlePrefix = "🟠 "
+            }
+
+            // 5. Send notification to all user's devices
             for (const sub of subs) {
                 try {
                     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
@@ -117,16 +173,26 @@ export async function GET(request: NextRequest) {
                         : `${siteUrl}/tasks`
 
                     const payload = JSON.stringify({
-                        title: taskData.title || "Task Reminder",
-                        body: "This task is due soon!",
+                        title: `${titlePrefix}${taskData.title || "Task Reminder"}`,
+                        body: body,
                         icon: "/logo.png",
+                        badge: "/logo.png",
+                        vibrate: vibrationPattern,
                         data: {
                             taskId: reminder.page_id,
-                            url: targetUrl
-                        }
+                            url: targetUrl,
+                            priority: priority
+                        },
+                        actions: [
+                            { action: 'complete', title: 'Mark Done' },
+                            { action: 'view', title: 'View Task' }
+                        ],
+                        tag: `task-${reminder.page_id}`,
+                        requireInteraction: requireInteraction,
+                        renotify: true
                     })
 
-                    console.log(`Sending notification for task: "${taskData.title}" to endpoint: ${sub.subscription.endpoint.substring(0, 50)}...`)
+                    console.log(`📬 Sending notification for task: "${taskData.title}" (${priority}) to endpoint: ${sub.subscription.endpoint.substring(0, 50)}...`)
 
                     await sendNotification(sub.subscription as any, payload)
 
@@ -136,6 +202,8 @@ export async function GET(request: NextRequest) {
                         taskId: taskData.id,
                         metadata: {
                             taskTitle: taskData.title,
+                            priority: priority,
+                            body: body,
                             endpoint: sub.subscription.endpoint.substring(0, 50)
                         }
                     })
@@ -154,7 +222,7 @@ export async function GET(request: NextRequest) {
                 }
             }
 
-            // 5. Mark reminder as sent
+            // 6. Mark reminder as sent
             await supabase
                 .from("task_reminders")
                 .update({ sent: true })

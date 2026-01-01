@@ -154,8 +154,8 @@ export default function TasksPage() {
                         </div>
                     </div>
 
-                    {/* Stats Cards */}
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+                    {/* Stats Cards - Horizontal on mobile */}
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8">
                         <StatCard
                             title="Total Tasks"
                             value={stats.total}
@@ -176,7 +176,7 @@ export default function TasksPage() {
                             value={stats.overdue}
                             icon={AlertCircle}
                             gradient="warning"
-                            className="animate-scale-in sm:col-span-2 lg:col-span-1"
+                            className="animate-scale-in"
                             style={{ animationDelay: '0.2s' }}
                         />
                     </div>
