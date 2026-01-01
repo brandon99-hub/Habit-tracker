@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import { TasksAuthGuard } from "@/components/tasks/auth-guard"
+import { ServiceWorkerRegistration } from "@/components/tasks/service-worker-registration"
 
 export const metadata: Metadata = {
     title: "TaskFlow",
@@ -13,7 +14,12 @@ export const metadata: Metadata = {
 }
 
 export default function TasksLayout({ children }: { children: React.ReactNode }) {
-    return <TasksAuthGuard>{children}</TasksAuthGuard>
+    return (
+        <TasksAuthGuard>
+            <ServiceWorkerRegistration />
+            {children}
+        </TasksAuthGuard>
+    )
 }
 
 
