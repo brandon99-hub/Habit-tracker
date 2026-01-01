@@ -213,7 +213,7 @@ export default function AllTasksPage() {
                             const statusVal = statusProp ? taskValues[statusProp.id] : null
                             const priorityVal = priorityProp ? taskValues[priorityProp.id] : null
                             const dueDateVal = dueDateProp ? taskValues[dueDateProp.id] : null
-                            const isOverdue = dueDateVal && new Date(dueDateVal) < new Date()
+                            const isOverdue = dueDateVal && statusVal !== "Completed" && new Date(dueDateVal) < new Date()
 
                             return (
                                 <SwipeableTaskCard
@@ -222,7 +222,7 @@ export default function AllTasksPage() {
                                     onSwipeLeft={deleteTask}
                                     onSwipeRight={(taskId) => {
                                         if (statusProp) {
-                                            updateProperty(taskId, statusProp.id, "Done")
+                                            updateProperty(taskId, statusProp.id, "Completed")
                                         }
                                     }}
                                     onClick={() => router.push(`/tasks/category/${task.category_id}`)}

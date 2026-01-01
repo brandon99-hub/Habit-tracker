@@ -5,6 +5,17 @@ import { sendNotification } from "@/lib/web-push"
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
+    // Validate environment variables
+    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+        console.error("VAPID keys not configured")
+        return NextResponse.json({ error: "VAPID keys not configured" }, { status: 500 })
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.error("Service role key not configured")
+        return NextResponse.json({ error: "Service role key not configured" }, { status: 500 })
+    }
+
     // Create a service-role client to bypass RLS (inside function to avoid build-time errors)
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,8 +45,11 @@ export async function GET(request: NextRequest) {
         }
 
         if (!reminders || reminders.length === 0) {
-            return NextResponse.json({ success: true, count: 0 })
+            console.log("No reminders to process")
+            return NextResponse.json({ success: true, count: 0, message: "No reminders due" })
         }
+
+        console.log(`Processing ${reminders.length} reminder(s)`)
 
         const results = []
 
@@ -44,11 +58,21 @@ export async function GET(request: NextRequest) {
             const userId = reminder.user_id
 
             // Fetch task details
-            const { data: taskData } = await supabase
-                .from("pages")
-                .select("id, title, parent_id")
+            const { data: taskData, error: taskError } = await supabase
+                .from("task_pages")
+                .select("id, title, database_id")
                 .eq("id", reminder.page_id)
                 .single()
+
+            if (taskError || !taskData) {
+                console.error(`Task not found for reminder ${reminder.id}:`, taskError)
+                // Mark as sent to avoid retrying deleted tasks
+                await supabase
+                    .from("task_reminders")
+                    .update({ sent: true })
+                    .eq("id", reminder.id)
+                continue
+            }
 
             // 3. Get user's push subscription
             const { data: subs, error: subError } = await supabase
@@ -65,25 +89,27 @@ export async function GET(request: NextRequest) {
             for (const sub of subs) {
                 try {
                     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
-                    const targetUrl = taskData?.parent_id
-                        ? `${siteUrl}/tasks/category/${taskData.parent_id}`
+                    const targetUrl = taskData.database_id
+                        ? `${siteUrl}/tasks/category/${taskData.database_id}`
                         : `${siteUrl}/tasks`
 
                     const payload = JSON.stringify({
-                        title: taskData?.title || "Task Reminder",
+                        title: taskData.title || "Task Reminder",
                         body: "This task is due soon!",
                         icon: "/logo.png",
                         data: {
-                            habitId: reminder.page_id,
+                            taskId: reminder.page_id,
                             url: targetUrl
                         }
                     })
 
-                    console.log(`Sending notification for task: ${taskData?.title}`)
+                    console.log(`Sending notification for task: "${taskData.title}" to endpoint: ${sub.subscription.endpoint.substring(0, 50)}...`)
                     await sendNotification(sub.subscription as any, payload)
-                    results.push({ id: reminder.id, status: "sent", task: taskData?.title })
-                } catch (err) {
-                    console.error("Error sending push", err)
+                    console.log(`✅ Notification sent successfully for task: "${taskData.title}"`)
+                    results.push({ id: reminder.id, status: "sent", task: taskData.title })
+                } catch (err: any) {
+                    console.error(`❌ Error sending notification for task "${taskData.title}":`, err.message || err)
+                    results.push({ id: reminder.id, status: "failed", task: taskData.title, error: err.message })
                     // If 410 Gone, we should delete the subscription (todo)
                 }
             }
@@ -95,7 +121,18 @@ export async function GET(request: NextRequest) {
                 .eq("id", reminder.id)
         }
 
-        return NextResponse.json({ success: true, count: results.length, processed: results })
+        const successCount = results.filter(r => r.status === "sent").length
+        const failCount = results.filter(r => r.status === "failed").length
+
+        console.log(`\n📊 Summary: ${successCount} sent, ${failCount} failed out of ${results.length} total`)
+
+        return NextResponse.json({
+            success: true,
+            total: results.length,
+            sent: successCount,
+            failed: failCount,
+            processed: results
+        })
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }

@@ -298,10 +298,10 @@ export default function CalendarPage() {
                                         // Mark as complete
                                         const statusProp = properties.find(p => p.name === "Status")
                                         if (statusProp) {
-                                            await setPropertyValue(taskId, statusProp.id, "Done")
+                                            await setPropertyValue(taskId, statusProp.id, "Completed")
                                             setPropertyValues(prev => ({
                                                 ...prev,
-                                                [taskId]: { ...(prev[taskId] || {}), [statusProp.id]: "Done" }
+                                                [taskId]: { ...(prev[taskId] || {}), [statusProp.id]: "Completed" }
                                             }))
                                         }
                                     }}

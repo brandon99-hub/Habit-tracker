@@ -36,7 +36,7 @@ export function CalendarTaskCard({
     const priority = priorityProp ? (propertyValues[priorityProp.id] || "Medium") : "Medium"
     const dueDate = dueDateProp ? propertyValues[dueDateProp.id] : null
 
-    const isOverdue = dueDate && new Date(dueDate) < new Date()
+    const isOverdue = dueDate && status !== "Completed" && new Date(dueDate) < new Date()
 
     const priorityColors = {
         Urgent: "text-red-500",
@@ -46,7 +46,7 @@ export function CalendarTaskCard({
     }
 
     const statusColors = {
-        "Done": "text-green-500",
+        "Completed": "text-green-500",
         "In Progress": "text-blue-500",
         "Not Started": "text-muted-foreground",
     }
@@ -55,8 +55,8 @@ export function CalendarTaskCard({
         <div className="flex items-start gap-3">
             {/* Priority Dot */}
             <div className={`h-2 w-2 rounded-full mt-2 flex-shrink-0 ${priority === "Urgent" ? "bg-red-500" :
-                    priority === "High" ? "bg-orange-500" :
-                        priority === "Medium" ? "bg-yellow-500" : "bg-green-500"
+                priority === "High" ? "bg-orange-500" :
+                    priority === "Medium" ? "bg-yellow-500" : "bg-green-500"
                 }`} />
 
             {/* Task Icon */}

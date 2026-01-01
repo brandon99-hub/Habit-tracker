@@ -73,8 +73,8 @@ export default function TasksPage() {
                 const dueDateVal = values?.find((v: any) => v.property_id === dueDateProp?.id)?.value
 
                 // Check Completed Today
-                // Assuming "Done" is the completed status
-                if (statusVal === "Done") {
+                // Assuming "Completed" is the completed status
+                if (statusVal === "Completed") {
                     const updatedAt = new Date(task.updated_at) // task_pages has updated_at
                     updatedAt.setHours(0, 0, 0, 0)
                     if (updatedAt.getTime() === today.getTime()) {
@@ -83,7 +83,7 @@ export default function TasksPage() {
                 }
 
                 // Check Overdue
-                if (dueDateVal && statusVal !== "Done") {
+                if (dueDateVal && statusVal !== "Completed") {
                     const due = new Date(dueDateVal)
                     // If due date is before today (not including today)
                     if (due < today) {
