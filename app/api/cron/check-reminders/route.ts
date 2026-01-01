@@ -100,3 +100,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }
+
+// Also support POST method for cron jobs
+export async function POST(request: NextRequest) {
+    return GET(request)
+}
