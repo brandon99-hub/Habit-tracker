@@ -11,6 +11,7 @@ import { TaskFilters, type FilterOptions } from "./task-filters"
 import { TaskSort, type SortOption } from "./task-sort"
 import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import { shouldShowRecurringTask } from "@/lib/tasks/recurring-utils"
+import { CalendarTaskCard } from "./calendar-task-card"
 
 type Props = {
     tasks: Page[]
@@ -146,9 +147,29 @@ export function CalendarView({ tasks, properties, propertyValues, recurringTasks
                                 <div className="text-sm">
                                     {format(day, 'd')}
                                 </div>
-                                {hasTasks && (
-                                    <div className="w-1 h-1 rounded-full bg-primary mx-auto mt-1" />
-                                )}
+                                {(() => {
+                                    const taskCount = getTasksForDate(day).length
+                                    if (taskCount === 0) return null
+                                    if (taskCount === 1) {
+                                        return <div className="w-1 h-1 rounded-full bg-primary mx-auto mt-1" />
+                                    }
+                                    // Show multiple dots or count for 2+ tasks
+                                    if (taskCount <= 3) {
+                                        return (
+                                            <div className="flex justify-center gap-0.5 mt-1">
+                                                {Array.from({ length: taskCount }).map((_, i) => (
+                                                    <div key={i} className="w-1 h-1 rounded-full bg-primary" />
+                                                ))}
+                                            </div>
+                                        )
+                                    }
+                                    // Show count badge for 4+ tasks
+                                    return (
+                                        <div className="text-[8px] font-bold text-primary mt-0.5">
+                                            {taskCount}
+                                        </div>
+                                    )
+                                })()}
                             </button>
                         )
                     })}
@@ -172,40 +193,15 @@ export function CalendarView({ tasks, properties, propertyValues, recurringTasks
                     </Card>
                 ) : (
                     <div className="space-y-2">
-                        {sortedTasks.map((task) => {
-                            const statusProp = properties.find((p) => p.name === "Status")
-                            const priorityProp = properties.find((p) => p.name === "Priority")
-                            const status = statusProp ? (propertyValues[task.id]?.[statusProp.id] || "Not Started") : "Not Started"
-                            const priority = priorityProp ? (propertyValues[task.id]?.[priorityProp.id] || "Medium") : "Medium"
-
-                            const priorityColors = {
-                                Urgent: "bg-red-500",
-                                High: "bg-orange-500",
-                                Medium: "bg-yellow-500",
-                                Low: "bg-green-500",
-                            }
-
-                            return (
-                                <Card
-                                    key={task.id}
-                                    className="p-4 hover-lift cursor-pointer"
-                                    onClick={() => onTaskClick(task.id)}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className={`h-2 w-2 rounded-full mt-2 ${priorityColors[priority as keyof typeof priorityColors] || priorityColors.Medium}`} />
-                                        <TaskIcon iconName={task.icon} className="text-primary mt-0.5" />
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-medium truncate">{task.title}</h4>
-                                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                                                <span>Status: {status}</span>
-                                                <span>•</span>
-                                                <span>Priority: {priority}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Card>
-                            )
-                        })}
+                        {sortedTasks.map((task) => (
+                            <CalendarTaskCard
+                                key={task.id}
+                                task={task}
+                                properties={properties}
+                                propertyValues={propertyValues[task.id] || {}}
+                                onClick={() => onTaskClick(task.id)}
+                            />
+                        ))}
                     </div>
                 )}
             </div>

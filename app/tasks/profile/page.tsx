@@ -13,24 +13,18 @@ import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { InstallAppSection } from "@/components/tasks/install-app-section"
+import { usePushSubscription } from "@/hooks/use-push-subscription"
 
 export default function ProfilePage() {
     const router = useRouter()
     const { user, signOut } = useAuth()
     const { toast } = useToast()
+    const { isSubscribed, subscribe, loading: subscribeLoading, error: subscribeError } = usePushSubscription()
     const [name, setName] = useState(user?.user_metadata?.name || "")
     const [email, setEmail] = useState(user?.email || "")
-    const [notificationsEnabled, setNotificationsEnabled] = useState(false)
     const [isChangingPassword, setIsChangingPassword] = useState(false)
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
-
-    // Sync notification state with browser permission
-    useState(() => {
-        if (typeof window !== "undefined" && "Notification" in window) {
-            setNotificationsEnabled(Notification.permission === "granted")
-        }
-    })
 
     const handleUpdateProfile = async () => {
         const { error } = await supabase.auth.updateUser({
@@ -91,14 +85,41 @@ export default function ProfilePage() {
         }
     }
 
-    const handleRequestNotificationPermission = async () => {
+
+    const handleToggleNotifications = async () => {
+        if (isSubscribed) {
+            // Already subscribed, show message
+            toast({
+                title: "Already Subscribed",
+                description: "You're already receiving push notifications",
+            })
+            return
+        }
+
+        // Request permission and subscribe
         if ("Notification" in window) {
             const permission = await Notification.requestPermission()
             if (permission === "granted") {
-                setNotificationsEnabled(true)
+                // Now actually subscribe
+                await subscribe()
+
+                if (subscribeError) {
+                    toast({
+                        title: "Error",
+                        description: subscribeError,
+                        variant: "destructive",
+                    })
+                } else {
+                    toast({
+                        title: "Success",
+                        description: "Push notifications enabled successfully!",
+                    })
+                }
+            } else {
                 toast({
-                    title: "Success",
-                    description: "Notifications enabled",
+                    title: "Permission Denied",
+                    description: "Please allow notifications in your browser settings",
+                    variant: "destructive",
                 })
             }
         }
@@ -233,44 +254,18 @@ export default function ProfilePage() {
                             </p>
                         </div>
                         <Switch
-                            checked={notificationsEnabled}
+                            checked={isSubscribed}
                             onCheckedChange={async (checked) => {
                                 if (checked) {
-                                    if (!("Notification" in window)) {
-                                        toast({
-                                            title: "Not Supported",
-                                            description: "This browser does not support desktop notifications",
-                                            variant: "destructive",
-                                        })
-                                        return
-                                    }
-
-                                    if (Notification.permission === "granted") {
-                                        setNotificationsEnabled(true)
-                                    } else if (Notification.permission !== "denied") {
-                                        const permission = await Notification.requestPermission()
-                                        if (permission === "granted") {
-                                            setNotificationsEnabled(true)
-                                            toast({
-                                                title: "Success",
-                                                description: "Notifications enabled",
-                                            })
-                                        } else {
-                                            setNotificationsEnabled(false)
-                                        }
-                                    } else {
-                                        // Denied
-                                        toast({
-                                            title: "Permission Denied",
-                                            description: "Please enable notifications in your browser settings to receive reminders.",
-                                            variant: "destructive",
-                                        })
-                                        setNotificationsEnabled(false)
-                                    }
+                                    await handleToggleNotifications()
                                 } else {
-                                    setNotificationsEnabled(false)
+                                    toast({
+                                        title: "Info",
+                                        description: "To disable notifications, revoke permission in your browser settings",
+                                    })
                                 }
                             }}
+                            disabled={subscribeLoading}
                         />
                     </div>
                 </Card>

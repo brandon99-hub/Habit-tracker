@@ -13,6 +13,8 @@ import { getPropertyValues } from "@/lib/tasks/supabase-categories"
 import { getRecurringTask } from "@/lib/tasks/recurring-service"
 import { TaskIcon } from "@/components/tasks/task-icon"
 import type { Page } from "@/lib/tasks/supabase-categories"
+import { CalendarTaskCard } from "@/components/tasks/calendar-task-card"
+import { setPropertyValue } from "@/lib/tasks/supabase-categories"
 
 export default function CalendarPage() {
     const router = useRouter()
@@ -241,13 +243,29 @@ export default function CalendarPage() {
                                     <div className="text-sm">
                                         {format(day, 'd')}
                                     </div>
-                                    {tasksOnDay.length > 0 && (
-                                        <div className="flex justify-center gap-0.5 mt-1">
-                                            {tasksOnDay.slice(0, 3).map((_, i) => (
-                                                <div key={i} className="w-1 h-1 rounded-full bg-primary" />
-                                            ))}
-                                        </div>
-                                    )}
+                                    {(() => {
+                                        const taskCount = tasksOnDay.length
+                                        if (taskCount === 0) return null
+                                        if (taskCount === 1) {
+                                            return <div className="w-1 h-1 rounded-full bg-primary" />
+                                        }
+                                        // Show multiple dots for 2-3 tasks
+                                        if (taskCount <= 3) {
+                                            return (
+                                                <div className="flex justify-center gap-0.5 mt-1">
+                                                    {tasksOnDay.slice(0, 3).map((_, i) => (
+                                                        <div key={i} className="w-1 h-1 rounded-full bg-primary" />
+                                                    ))}
+                                                </div>
+                                            )
+                                        }
+                                        // Show count for 4+ tasks
+                                        return (
+                                            <div className="text-[8px] font-bold text-primary mt-0.5">
+                                                {taskCount}
+                                            </div>
+                                        )
+                                    })()}
                                 </button>
                             )
                         })}
@@ -265,48 +283,31 @@ export default function CalendarPage() {
                         </Card>
                     ) : (
                         <div className="space-y-2">
-                            {tasksForSelectedDate.map((task) => {
-                                const statusProp = properties.find((p) => p.name === "Status")
-                                const priorityProp = properties.find((p) => p.name === "Priority")
-                                const status = statusProp ? (propertyValues[task.id]?.[statusProp.id] || "Not Started") : "Not Started"
-                                const priority = priorityProp ? (propertyValues[task.id]?.[priorityProp.id] || "Medium") : "Medium"
-                                const isRecurring = !!recurringTasks[task.id]
-
-                                const priorityColors = {
-                                    Urgent: "bg-red-500",
-                                    High: "bg-orange-500",
-                                    Medium: "bg-yellow-500",
-                                    Low: "bg-green-500",
-                                }
-
-                                return (
-                                    <Card
-                                        key={task.id}
-                                        className="p-4 hover-lift cursor-pointer"
-                                        onClick={() => router.push(`/tasks/category/${task.category_id}`)}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <div className={`h-2 w-2 rounded-full mt-2 ${priorityColors[priority as keyof typeof priorityColors] || priorityColors.Medium}`} />
-                                            <TaskIcon iconName={task.icon} className="text-primary mt-0.5" />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="font-medium truncate">{task.title}</h4>
-                                                    {isRecurring && (
-                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                                            Recurring
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                                                    <span>Status: {status}</span>
-                                                    <span>•</span>
-                                                    <span>Priority: {priority}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                )
-                            })}
+                            {tasksForSelectedDate.map((task) => (
+                                <CalendarTaskCard
+                                    key={task.id}
+                                    task={task}
+                                    properties={properties}
+                                    propertyValues={propertyValues[task.id] || {}}
+                                    onSwipeLeft={async (taskId) => {
+                                        // Delete task
+                                        await supabase.from("task_pages").delete().eq("id", taskId)
+                                        setAllTasks(prev => prev.filter(t => t.id !== taskId))
+                                    }}
+                                    onSwipeRight={async (taskId) => {
+                                        // Mark as complete
+                                        const statusProp = properties.find(p => p.name === "Status")
+                                        if (statusProp) {
+                                            await setPropertyValue(taskId, statusProp.id, "Done")
+                                            setPropertyValues(prev => ({
+                                                ...prev,
+                                                [taskId]: { ...(prev[taskId] || {}), [statusProp.id]: "Done" }
+                                            }))
+                                        }
+                                    }}
+                                    onClick={() => router.push(`/tasks/category/${task.category_id}`)}
+                                />
+                            ))}
                         </div>
                     )}
                 </div>
