@@ -58,11 +58,14 @@ export function usePushSubscription() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({ subscription }),
             })
 
             if (!response.ok) {
-                throw new Error('Failed to save subscription to server')
+                const errorData = await response.json().catch(() => ({}))
+                console.error('Server response:', errorData)
+                throw new Error(errorData.error || 'Failed to save subscription to server')
             }
 
             setIsSubscribed(true)
