@@ -20,8 +20,8 @@ import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
-import { useSwipeable } from "react-swipeable"
 import { Clock } from "lucide-react"
+import { SwipeableTaskCard } from "@/components/tasks/swipeable-task-card"
 
 export default function AllTasksPage() {
     const router = useRouter()
@@ -215,28 +215,18 @@ export default function AllTasksPage() {
                             const dueDateVal = dueDateProp ? taskValues[dueDateProp.id] : null
                             const isOverdue = dueDateVal && new Date(dueDateVal) < new Date()
 
-                            // Create swipe handlers outside of JSX
-                            const taskSwipeHandlers = useSwipeable({
-                                onSwipedLeft: (e) => {
-                                    e.event.stopPropagation()
-                                    deleteTask(task.id)
-                                },
-                                onSwipedRight: (e) => {
-                                    e.event.stopPropagation()
-                                    if (statusProp) {
-                                        updateProperty(task.id, statusProp.id, "Done")
-                                    }
-                                },
-                                trackMouse: false,
-                                preventScrollOnSwipe: true,
-                            })
-
                             return (
-                                <Card
+                                <SwipeableTaskCard
                                     key={task.id}
-                                    {...taskSwipeHandlers}
-                                    className="p-4 transition-all hover:bg-accent/5 cursor-pointer border border-border/50 group"
+                                    taskId={task.id}
+                                    onSwipeLeft={deleteTask}
+                                    onSwipeRight={(taskId) => {
+                                        if (statusProp) {
+                                            updateProperty(taskId, statusProp.id, "Done")
+                                        }
+                                    }}
                                     onClick={() => router.push(`/tasks/category/${task.category_id}`)}
+                                    className="p-4 transition-all hover:bg-accent/5 cursor-pointer border border-border/50 group"
                                 >
                                     <div className="flex gap-4 items-start">
                                         {/* Icon & Category Indicator */}
@@ -338,7 +328,7 @@ export default function AllTasksPage() {
                                             <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground" />
                                         </div>
                                     </div>
-                                </Card>
+                                </SwipeableTaskCard>
                             )
                         })
                     )}
