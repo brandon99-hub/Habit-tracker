@@ -45,8 +45,8 @@ export function NotificationCenter() {
                     console.log('Push subscription:', subscription)
                 }
 
-                // Send test notification
-                await sendTestNotification()
+                // Test notification removed - was confusing users
+                // Actual reminders will be sent by the cron job at scheduled times
             }
         }
     }

@@ -40,9 +40,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Start reminder service when user is logged in
     useEffect(() => {
         if (user) {
-            const { startReminderService } = require("@/lib/notification-service")
-            const cleanup = startReminderService(user.id)
-            return cleanup
+            // Client-side reminder service disabled - using server-side cron job instead
+            // This was marking reminders as sent before the cron could process them
+            // const { startReminderService } = require("@/lib/notification-service")
+            // const cleanup = startReminderService(user.id)
+            // return cleanup
         }
     }, [user])
 
