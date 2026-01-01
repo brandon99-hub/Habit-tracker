@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,30 @@ export default function ProfilePage() {
     const [isChangingPassword, setIsChangingPassword] = useState(false)
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
+
+    // Auto-sync browser subscription to database if it exists
+    useEffect(() => {
+        const syncSubscription = async () => {
+            if (isSubscribed && !subscribeLoading) {
+                // Check if subscription exists in database
+                const { data: existingSubscription } = await supabase
+                    .from("user_push_subscriptions")
+                    .select("*")
+                    .eq("user_id", user?.id)
+                    .single()
+
+                // If no database record but browser has subscription, save it
+                if (!existingSubscription && 'serviceWorker' in navigator) {
+                    console.log("Found browser subscription without database record, syncing...")
+                    await subscribe()
+                }
+            }
+        }
+
+        if (user) {
+            syncSubscription()
+        }
+    }, [isSubscribed, user])
 
     const handleUpdateProfile = async () => {
         const { error } = await supabase.auth.updateUser({
