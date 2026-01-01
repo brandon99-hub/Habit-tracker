@@ -23,14 +23,7 @@ export async function GET(request: NextRequest) {
         // 1. Fetch due reminders that haven't been sent
         const { data: reminders, error: reminderError } = await supabase
             .from("task_reminders")
-            .select(`
-                *,
-                pages!task_reminders_page_id_fkey (
-                    id,
-                    title,
-                    parent_id
-                )
-            `)
+            .select("*")
             .eq("sent", false)
             .lte("remind_at", now.toISOString())
             .limit(50) // Process in batches
@@ -50,6 +43,13 @@ export async function GET(request: NextRequest) {
         for (const reminder of reminders) {
             const userId = reminder.user_id
 
+            // Fetch task details
+            const { data: taskData } = await supabase
+                .from("pages")
+                .select("id, title, parent_id")
+                .eq("id", reminder.page_id)
+                .single()
+
             // 3. Get user's push subscription
             const { data: subs, error: subError } = await supabase
                 .from("user_push_subscriptions")
@@ -65,12 +65,12 @@ export async function GET(request: NextRequest) {
             for (const sub of subs) {
                 try {
                     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
-                    const targetUrl = reminder.pages?.parent_id
-                        ? `${siteUrl}/tasks/category/${reminder.pages.parent_id}`
+                    const targetUrl = taskData?.parent_id
+                        ? `${siteUrl}/tasks/category/${taskData.parent_id}`
                         : `${siteUrl}/tasks`
 
                     const payload = JSON.stringify({
-                        title: reminder.pages?.title || "Task Reminder",
+                        title: taskData?.title || "Task Reminder",
                         body: "This task is due soon!",
                         icon: "/logo.png",
                         data: {
@@ -79,9 +79,9 @@ export async function GET(request: NextRequest) {
                         }
                     })
 
-                    console.log(`Sending notification for task: ${reminder.pages?.title}`)
+                    console.log(`Sending notification for task: ${taskData?.title}`)
                     await sendNotification(sub.subscription as any, payload)
-                    results.push({ id: reminder.id, status: "sent", task: reminder.pages?.title })
+                    results.push({ id: reminder.id, status: "sent", task: taskData?.title })
                 } catch (err) {
                     console.error("Error sending push", err)
                     // If 410 Gone, we should delete the subscription (todo)
