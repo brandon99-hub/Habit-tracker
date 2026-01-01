@@ -23,7 +23,14 @@ export async function GET(request: NextRequest) {
         // 1. Fetch due reminders that haven't been sent
         const { data: reminders, error: reminderError } = await supabase
             .from("task_reminders")
-            .select("*, task_pages(*)")
+            .select(`
+                *,
+                pages!task_reminders_page_id_fkey (
+                    id,
+                    title,
+                    parent_id
+                )
+            `)
             .eq("sent", false)
             .lte("remind_at", now.toISOString())
             .limit(50) // Process in batches
@@ -58,22 +65,23 @@ export async function GET(request: NextRequest) {
             for (const sub of subs) {
                 try {
                     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
-                    const targetUrl = reminder.task_pages?.parent_id
-                        ? `${siteUrl}/tasks/category/${reminder.task_pages.parent_id}`
+                    const targetUrl = reminder.pages?.parent_id
+                        ? `${siteUrl}/tasks/category/${reminder.pages.parent_id}`
                         : `${siteUrl}/tasks`
 
                     const payload = JSON.stringify({
-                        title: reminder.task_pages?.title || "Task Reminder",
+                        title: reminder.pages?.title || "Task Reminder",
                         body: "This task is due soon!",
-                        icon: "/icon-192x192.png",
+                        icon: "/logo.png",
                         data: {
                             habitId: reminder.page_id,
                             url: targetUrl
                         }
                     })
 
+                    console.log(`Sending notification for task: ${reminder.pages?.title}`)
                     await sendNotification(sub.subscription as any, payload)
-                    results.push({ id: reminder.id, status: "sent" })
+                    results.push({ id: reminder.id, status: "sent", task: reminder.pages?.title })
                 } catch (err) {
                     console.error("Error sending push", err)
                     // If 410 Gone, we should delete the subscription (todo)
