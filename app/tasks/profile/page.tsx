@@ -245,20 +245,32 @@ export default function ProfilePage() {
                                 Receive notifications for task reminders
                             </p>
                         </div>
-                        <Switch
-                            checked={isSubscribed}
-                            onCheckedChange={async (checked) => {
-                                if (checked) {
-                                    await handleToggleNotifications()
-                                } else {
-                                    toast({
-                                        title: "Info",
-                                        description: "To disable notifications, revoke permission in your browser settings",
-                                    })
-                                }
-                            }}
-                            disabled={subscribeLoading}
-                        />
+                        <div className="flex gap-2">
+                            <Switch
+                                checked={isSubscribed}
+                                onCheckedChange={async (checked) => {
+                                    if (checked) {
+                                        await handleToggleNotifications()
+                                    } else {
+                                        toast({
+                                            title: "Info",
+                                            description: "To disable notifications, revoke permission in your browser settings",
+                                        })
+                                    }
+                                }}
+                                disabled={subscribeLoading}
+                            />
+                            {!isSubscribed && (
+                                <Button
+                                    onClick={handleToggleNotifications}
+                                    disabled={subscribeLoading}
+                                    size="sm"
+                                    variant="outline"
+                                >
+                                    {subscribeLoading ? "Subscribing..." : "Subscribe Now"}
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </Card>
 
