@@ -1,30 +1,34 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
 
 export async function POST(request: NextRequest) {
     try {
-        // Create client with cookies for auth
-        const cookieStore = await cookies()
+        // Get auth token from request headers
+        const authHeader = request.headers.get('authorization')
+
+        if (!authHeader) {
+            console.error("No authorization header found")
+            return NextResponse.json({ error: "Unauthorized - No auth header" }, { status: 401 })
+        }
+
+        // Create Supabase client with the auth token
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             {
-                auth: {
-                    storage: {
-                        getItem: (key) => cookieStore.get(key)?.value ?? null,
-                        setItem: (key, value) => { cookieStore.set(key, value) },
-                        removeItem: (key) => { cookieStore.delete(key) },
-                    },
-                },
+                global: {
+                    headers: {
+                        Authorization: authHeader
+                    }
+                }
             }
         )
 
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-        if (!user) {
-            console.error("No user found in session")
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        if (userError || !user) {
+            console.error("Auth error:", userError)
+            return NextResponse.json({ error: "Unauthorized - Invalid token" }, { status: 401 })
         }
 
         const { subscription } = await request.json()

@@ -52,11 +52,19 @@ export function usePushSubscription() {
                 applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
             })
 
-            // Send subscription to server
+            // Get auth token from Supabase
+            const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession()
+
+            if (!session) {
+                throw new Error('No active session')
+            }
+
+            // Send subscription to server with auth token
             const response = await fetch('/api/push/subscribe', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
                 },
                 credentials: 'include',
                 body: JSON.stringify({ subscription }),
