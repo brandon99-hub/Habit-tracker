@@ -375,8 +375,8 @@ export default function AllTasksPage() {
                                         <div className="flex-1 min-w-0 space-y-2">
                                             {/* Top Line: Title & Category */}
                                             <div className="flex justify-between items-start gap-2">
-                                                <div className="min-w-0">
-                                                    <h3 className="font-semibold text-lg leading-tight truncate group-hover:text-primary transition-colors">
+                                                <div className="min-w-0 flex-1">
+                                                    <h3 className="font-semibold text-lg leading-tight group-hover:text-primary transition-colors">
                                                         {task.title}
                                                     </h3>
                                                     {category && (
@@ -456,7 +456,7 @@ export default function AllTasksPage() {
                                         </div>
 
                                         {/* Chevron Indicator */}
-                                        <div className="pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="pt-2">
                                             <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground" />
                                         </div>
                                     </div>

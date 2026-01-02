@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { FloatingActionButton } from "@/components/ui/floating-action-button"
 import { BottomNav } from "@/components/ui/bottom-nav"
 import { ProgressRing } from "@/components/ui/progress-ring"
-import { Plus, CheckCircle2, Clock, AlertCircle, Grid, Calendar, User, LogOut, Zap } from "lucide-react"
+import { Plus, CheckCircle2, Clock, AlertCircle, Grid, Calendar, User, LogOut, Zap, ChevronRight } from "lucide-react"
 import { useState, useEffect } from "react"
 import { CreateCategoryDialog } from "@/components/tasks/create-category-dialog"
 import { QuickAddDialog } from "@/components/tasks/quick-add-dialog"
@@ -290,6 +290,7 @@ export default function TasksPage() {
                                                 </p>
                                             )}
                                         </div>
+                                        <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                                     </div>
                                 </GradientCard>
                             ))}
