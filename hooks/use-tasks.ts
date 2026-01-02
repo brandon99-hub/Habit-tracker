@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useCache } from "@/lib/cache-context"
 import {
     getPages,
     getProperties,
@@ -19,6 +20,7 @@ export type TaskWithProperties = Page & {
 }
 
 export function useTasks(categoryId: string | null) {
+    const cache = useCache()
     const [tasks, setTasks] = useState<Page[]>([])
     const [properties, setProperties] = useState<Property[]>([])
     const [loading, setLoading] = useState(true)
@@ -30,6 +32,23 @@ export function useTasks(categoryId: string | null) {
             return
         }
 
+        const cacheKey = `category-${categoryId}-tasks`
+
+        // Check cache first synchronously
+        const cached = cache.get<{
+            tasks: Page[]
+            properties: Property[]
+        }>(cacheKey)
+
+        if (cached) {
+            // Use cached data immediately - no loading state
+            setTasks(cached.tasks)
+            setProperties(cached.properties)
+            setLoading(false)
+            return
+        }
+
+        // No cache - fetch from database
         setLoading(true)
         const [pagesResult, propsResult] = await Promise.all([
             getPages(categoryId),
@@ -48,12 +67,20 @@ export function useTasks(categoryId: string | null) {
             setProperties(propsResult.data || [])
         }
 
+        // Cache the data
+        if (pagesResult.data && propsResult.data) {
+            cache.set(cacheKey, {
+                tasks: pagesResult.data,
+                properties: propsResult.data
+            })
+        }
+
         setLoading(false)
     }
 
     useEffect(() => {
         fetchTasks()
-    }, [categoryId])
+    }, [categoryId, cache])
 
     const addTask = async (title: string, icon?: string) => {
         if (!categoryId) return { error: "No category selected" }
