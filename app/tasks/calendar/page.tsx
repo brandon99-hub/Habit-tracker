@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { useCache } from "@/lib/cache-context"
 import { Button } from "@/components/ui/button"
 import { BottomNav } from "@/components/ui/bottom-nav"
 import { Grid, Calendar as CalendarIcon, User, CheckCircle2, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
@@ -19,6 +20,7 @@ import { setPropertyValue } from "@/lib/tasks/supabase-categories"
 export default function CalendarPage() {
     const router = useRouter()
     const { user } = useAuth()
+    const cache = useCache()
     const [currentMonth, setCurrentMonth] = useState(new Date())
     const [selectedDate, setSelectedDate] = useState(new Date())
     const [allTasks, setAllTasks] = useState<Page[]>([])
@@ -35,9 +37,29 @@ export default function CalendarPage() {
         async function fetchData() {
             if (!user) return
 
+            const cacheKey = 'calendar-data'
+
+            // Check cache first synchronously
+            const cached = cache.get<{
+                tasks: Page[]
+                properties: any[]
+                propertyValues: Record<string, Record<string, any>>
+                recurringTasks: Record<string, any>
+            }>(cacheKey)
+
+            if (cached) {
+                // Use cached data immediately - no loading state
+                setAllTasks(cached.tasks)
+                setProperties(cached.properties)
+                setPropertyValues(cached.propertyValues)
+                setRecurringTasks(cached.recurringTasks)
+                setLoading(false)
+                return
+            }
+
             console.log("[CALENDAR] Fetching all tasks...")
 
-            // Fetch all tasks
+            // No cache - fetch from database
             const { data: tasksData, error: tasksError } = await supabase
                 .from("task_pages")
                 .select("*")
@@ -78,7 +100,7 @@ export default function CalendarPage() {
                         values[task.id] = taskValues
                     }
 
-                    // Fetch recurring data - don't use .single()
+                    // Fetch recurring data
                     const { data: recurringData, error: recurringError } = await getRecurringTask(task.id)
                     if (recurringError && recurringError.code !== 'PGRST116') {
                         console.error("[CALENDAR] Error fetching recurring for task:", task.id, recurringError)
@@ -92,22 +114,34 @@ export default function CalendarPage() {
                 console.log("[CALENDAR] Total recurring tasks:", Object.keys(recurring).length)
                 setPropertyValues(values)
                 setRecurringTasks(recurring)
+
+                // Cache the data
+                cache.set(cacheKey, {
+                    tasks: tasksData,
+                    properties: propsData || [],
+                    propertyValues: values,
+                    recurringTasks: recurring
+                })
             }
 
             setLoading(false)
         }
 
         fetchData()
-    }, [user])
+    }, [user, cache])
 
     // Check if a date has tasks (including recurring occurrences)
     const getTasksForDate = (date: Date) => {
-        const dueDateProp = properties.find((p) => p.name === "Due Date")
-        if (!dueDateProp) return []
-
         const tasksOnDate: Page[] = []
 
         allTasks.forEach((task) => {
+            // Find Due Date property FOR THIS TASK'S CATEGORY
+            const dueDateProp = properties.find((p) =>
+                p.name === "Due Date" && p.category_id === task.category_id
+            )
+
+            if (!dueDateProp) return // Skip if no due date property for this category
+
             const dueDate = propertyValues[task.id]?.[dueDateProp.id]
             const recurring = recurringTasks[task.id]
 
@@ -289,6 +323,7 @@ export default function CalendarPage() {
                                     task={task}
                                     properties={properties}
                                     propertyValues={propertyValues[task.id] || {}}
+                                    isRecurring={!!recurringTasks[task.id]}
                                     onSwipeLeft={async (taskId) => {
                                         // Delete task
                                         await supabase.from("task_pages").delete().eq("id", taskId)
@@ -296,7 +331,12 @@ export default function CalendarPage() {
                                     }}
                                     onSwipeRight={async (taskId) => {
                                         // Mark as complete
-                                        const statusProp = properties.find(p => p.name === "Status")
+                                        const task = allTasks.find(t => t.id === taskId)
+                                        if (!task) return
+
+                                        const statusProp = properties.find(p =>
+                                            p.name === "Status" && p.category_id === task.category_id
+                                        )
                                         if (statusProp) {
                                             await setPropertyValue(taskId, statusProp.id, "Completed")
                                             setPropertyValues(prev => ({

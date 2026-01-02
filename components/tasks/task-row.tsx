@@ -38,8 +38,11 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
     const [propertyValues, setPropertyValues] = useState<Record<string, any>>({})
     const [dragOffset, setDragOffset] = useState(0)
     const [isSwiping, setIsSwiping] = useState(false)
+    const [swipeDirection, setSwipeDirection] = useState<'horizontal' | 'vertical' | null>(null)
     const [recurringInfo, setRecurringInfo] = useState<any>(null)
     const [reminderInfo, setReminderInfo] = useState<any>(null)
+
+    const DIRECTION_THRESHOLD = 15 // pixels to determine direction
 
     useEffect(() => {
         // Fetch property values for this task
@@ -55,7 +58,7 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
 
         // Fetch recurring info
         supabase
-            .from("task_recurring")
+            .from("recurring_tasks")
             .select("*")
             .eq("page_id", task.id)
             .single()
@@ -68,8 +71,6 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
             .from("task_reminders")
             .select("*")
             .eq("page_id", task.id)
-            .order("remind_at", { ascending: false })
-            .limit(1)
             .single()
             .then(({ data }) => {
                 if (data) setReminderInfo(data)
@@ -85,7 +86,7 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
 
     const handlePropertyChange = async (propertyId: string, value: any) => {
         await onUpdateProperty(task.id, propertyId, value)
-        setPropertyValues({ ...propertyValues, [propertyId]: value })
+        setPropertyValues((prev) => ({ ...prev, [propertyId]: value }))
     }
 
     const statusProperty = properties.find((p) => p.name === "Status")
@@ -95,30 +96,57 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
     // Swipe handler for mobile
     const swipeHandlers = useSwipeable({
         onSwiping: (eventData) => {
-            setIsSwiping(true)
-            const offset = Math.max(-200, Math.min(200, eventData.deltaX))
-            setDragOffset(offset)
-        },
-        onSwiped: (eventData) => {
-            const cardWidth = 300
-            const swipeDistance = Math.abs(eventData.deltaX)
-            const swipePercentage = swipeDistance / cardWidth
+            // Determine swipe direction on first movement
+            if (!swipeDirection) {
+                const absX = Math.abs(eventData.deltaX)
+                const absY = Math.abs(eventData.deltaY)
 
-            if (swipePercentage >= 0.4) {
-                if (eventData.deltaX < 0) {
-                    // Swiped left - delete
-                    onDelete(task.id)
-                } else if (statusProperty) {
-                    // Swiped right - complete
-                    handlePropertyChange(statusProperty.id, "Completed")
+                // Only lock direction after threshold is reached
+                if (absX > DIRECTION_THRESHOLD || absY > DIRECTION_THRESHOLD) {
+                    if (absX > absY * 1.5) {
+                        // More horizontal than vertical (with 1.5x bias)
+                        setSwipeDirection('horizontal')
+                    } else {
+                        // More vertical - let scroll happen
+                        setSwipeDirection('vertical')
+                        return
+                    }
                 }
             }
 
+            // Only handle horizontal swipes
+            if (swipeDirection === 'horizontal') {
+                setIsSwiping(true)
+                const offset = Math.max(-200, Math.min(200, eventData.deltaX))
+                setDragOffset(offset)
+            }
+        },
+        onSwiped: (eventData) => {
+            // Only process if it was a horizontal swipe
+            if (swipeDirection === 'horizontal') {
+                const cardWidth = 300
+                const swipeDistance = Math.abs(eventData.deltaX)
+                const swipePercentage = swipeDistance / cardWidth
+
+                if (swipePercentage >= 0.4) {
+                    if (eventData.deltaX < 0) {
+                        // Swiped left - delete
+                        onDelete(task.id)
+                    } else if (statusProperty) {
+                        // Swiped right - complete
+                        handlePropertyChange(statusProperty.id, "Completed")
+                    }
+                }
+            }
+
+            // Reset position and direction
             setDragOffset(0)
             setIsSwiping(false)
+            setSwipeDirection(null)
         },
         trackMouse: false,
-        preventScrollOnSwipe: true,
+        preventScrollOnSwipe: false, // Changed to false to allow vertical scroll
+        delta: DIRECTION_THRESHOLD, // Minimum distance before swipe is detected
     })
 
     const getBackgroundOpacity = () => {

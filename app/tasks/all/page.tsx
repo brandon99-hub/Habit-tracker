@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card"
 import { TaskIcon } from "@/components/tasks/task-icon"
 import { TaskFilters, type FilterOptions } from "@/components/tasks/task-filters"
 import { TaskSort, type SortOption } from "@/components/tasks/task-sort"
+import { useToast } from "@/hooks/use-toast"
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog"
 import { getPages, getProperties, getPropertyValues, type Page, type Property, deletePage } from "@/lib/tasks/supabase-categories"
 import { setPropertyValue } from "@/lib/tasks/supabase-categories"
@@ -31,6 +32,7 @@ export default function AllTasksPage() {
     const { user } = useAuth()
     const { categories } = useCategories()
     const cache = useCache()
+    const { toast } = useToast()
     const [selectedCategory, setSelectedCategory] = useState<string>("all")
     const [allTasks, setAllTasks] = useState<Page[]>([])
     const [properties, setProperties] = useState<any[]>([])
@@ -57,7 +59,7 @@ export default function AllTasksPage() {
 
             const cacheKey = 'all-tasks-data'
 
-            // Check cache first
+            // Check cache first synchronously
             const cached = cache.get<{
                 tasks: Page[]
                 properties: any[]
@@ -66,6 +68,7 @@ export default function AllTasksPage() {
             }>(cacheKey)
 
             if (cached) {
+                // Use cached data immediately - no loading state
                 setAllTasks(cached.tasks)
                 setProperties(cached.properties)
                 setPropertyValues(cached.propertyValues)
@@ -74,7 +77,7 @@ export default function AllTasksPage() {
                 return
             }
 
-            // Fetch from database
+            // No cache - fetch from database
             const { data, error } = await supabase
                 .from("task_pages")
                 .select("*")
@@ -123,11 +126,12 @@ export default function AllTasksPage() {
                     recurringTasks: recurring
                 })
             }
+
             setLoading(false)
         }
 
         fetchAllTasks()
-    }, [user])
+    }, [user, cache])
 
     // Function to update a property value
     const updateProperty = async (taskId: string, propertyId: string, value: any) => {
@@ -150,13 +154,34 @@ export default function AllTasksPage() {
 
     // Function to delete a task
     const deleteTask = async (taskId: string) => {
+        const task = allTasks.find(t => t.id === taskId)
         const { error } = await deletePage(taskId)
 
         if (!error) {
             // Remove from local state
             setAllTasks(prev => prev.filter(t => t.id !== taskId))
-            // Invalidate cache
+
+            // Invalidate cache for real-time updates
             cache.invalidate('all-tasks-data')
+            cache.invalidate('home-stats')
+
+            // Also invalidate the specific category cache
+            if (task) {
+                cache.invalidate(`category-${task.category_id}-data`)
+            }
+
+            // Show success toast
+            toast({
+                title: "Task deleted",
+                description: task?.title ? `"${task.title}" has been deleted` : "Task has been deleted",
+            })
+        } else {
+            // Show error toast
+            toast({
+                title: "Error",
+                description: "Failed to delete task. Please try again.",
+                variant: "destructive"
+            })
         }
     }
 

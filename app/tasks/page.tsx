@@ -51,14 +51,15 @@ export default function TasksPage() {
 
             const cacheKey = 'home-stats'
 
-            // Check cache first
+            // Check cache first synchronously
             const cached = cache.get<typeof stats>(cacheKey)
             if (cached) {
+                // Use cached data immediately - no loading state needed
                 setStats(cached)
                 return
             }
 
-            // Fetch all tasks
+            // No cache - fetch from database
             const { data: allTasks } = await supabase
                 .from("task_pages")
                 .select("*")
@@ -85,11 +86,7 @@ export default function TasksPage() {
 
                 // Count completed today
                 if (statusValue === "Completed") {
-                    const updatedAt = new Date(task.updated_at)
-                    updatedAt.setHours(0, 0, 0, 0)
-                    if (updatedAt.getTime() === today.getTime()) {
-                        completedToday++
-                    }
+                    completedToday++
                 }
 
                 // Count overdue (not completed and due date in past)
@@ -187,17 +184,6 @@ export default function TasksPage() {
         if (hour < 12) return "Good morning"
         if (hour < 18) return "Good afternoon"
         return "Good evening"
-    }
-
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="text-center">
-                    <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-muted-foreground">Loading your workspace...</p>
-                </div>
-            </div>
-        )
     }
 
     return (

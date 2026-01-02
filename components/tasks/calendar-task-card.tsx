@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { TaskIcon } from "./task-icon"
-import { Clock, Calendar } from "lucide-react"
+import { Clock, Calendar, Repeat } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { SwipeableTaskCard } from "./swipeable-task-card"
 import type { Page, Property } from "@/lib/tasks/supabase-categories"
@@ -13,6 +13,7 @@ interface CalendarTaskCardProps {
     propertyValues: Record<string, any>
     categoryName?: string
     categoryIcon?: string
+    isRecurring?: boolean
     onSwipeLeft?: (taskId: string) => void
     onSwipeRight?: (taskId: string) => void
     onClick: () => void
@@ -24,13 +25,21 @@ export function CalendarTaskCard({
     propertyValues,
     categoryName,
     categoryIcon,
+    isRecurring = false,
     onSwipeLeft,
     onSwipeRight,
     onClick,
 }: CalendarTaskCardProps) {
-    const statusProp = properties.find((p) => p.name === "Status")
-    const priorityProp = properties.find((p) => p.name === "Priority")
-    const dueDateProp = properties.find((p) => p.name === "Due Date")
+    // Find properties FOR THIS TASK'S CATEGORY
+    const statusProp = properties.find((p) =>
+        p.name === "Status" && p.category_id === task.category_id
+    )
+    const priorityProp = properties.find((p) =>
+        p.name === "Priority" && p.category_id === task.category_id
+    )
+    const dueDateProp = properties.find((p) =>
+        p.name === "Due Date" && p.category_id === task.category_id
+    )
 
     const status = statusProp ? (propertyValues[statusProp.id] || "Not Started") : "Not Started"
     const priority = priorityProp ? (propertyValues[priorityProp.id] || "Medium") : "Medium"
@@ -99,6 +108,14 @@ export function CalendarTaskCard({
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             {categoryIcon && <span>{categoryIcon}</span>}
                             <span>{categoryName}</span>
+                        </div>
+                    )}
+
+                    {/* Recurring Badge */}
+                    {isRecurring && (
+                        <div className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600">
+                            <Repeat className="h-3 w-3" />
+                            <span>Recurring</span>
                         </div>
                     )}
                 </div>
