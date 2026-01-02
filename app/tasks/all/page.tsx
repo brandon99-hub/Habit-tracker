@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useCategories } from "@/hooks/use-categories"
+import { useCache } from "@/lib/cache-context"
 import { Button } from "@/components/ui/button"
 import { BottomNav } from "@/components/ui/bottom-nav"
 import { FloatingActionButton } from "@/components/ui/floating-action-button"
@@ -13,8 +14,10 @@ import { Card } from "@/components/ui/card"
 import { TaskIcon } from "@/components/tasks/task-icon"
 import { TaskFilters, type FilterOptions } from "@/components/tasks/task-filters"
 import { TaskSort, type SortOption } from "@/components/tasks/task-sort"
+import { AddTaskDialog } from "@/components/tasks/add-task-dialog"
 import { getPages, getProperties, getPropertyValues, type Page, type Property, deletePage } from "@/lib/tasks/supabase-categories"
 import { setPropertyValue } from "@/lib/tasks/supabase-categories"
+import { createPage } from "@/lib/tasks/supabase-tasks"
 import { getRecurringTask } from "@/lib/tasks/recurring-service"
 import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import { supabase } from "@/lib/supabase"
@@ -27,6 +30,7 @@ export default function AllTasksPage() {
     const router = useRouter()
     const { user } = useAuth()
     const { categories } = useCategories()
+    const cache = useCache()
     const [selectedCategory, setSelectedCategory] = useState<string>("all")
     const [allTasks, setAllTasks] = useState<Page[]>([])
     const [properties, setProperties] = useState<any[]>([])
@@ -45,11 +49,32 @@ export default function AllTasksPage() {
         field: "dueDate",
         direction: "asc",
     })
+    const [showAddDialog, setShowAddDialog] = useState(false)
 
     useEffect(() => {
         async function fetchAllTasks() {
             if (!user) return
 
+            const cacheKey = 'all-tasks-data'
+
+            // Check cache first
+            const cached = cache.get<{
+                tasks: Page[]
+                properties: any[]
+                propertyValues: Record<string, Record<string, any>>
+                recurringTasks: Record<string, any>
+            }>(cacheKey)
+
+            if (cached) {
+                setAllTasks(cached.tasks)
+                setProperties(cached.properties)
+                setPropertyValues(cached.propertyValues)
+                setRecurringTasks(cached.recurringTasks)
+                setLoading(false)
+                return
+            }
+
+            // Fetch from database
             const { data, error } = await supabase
                 .from("task_pages")
                 .select("*")
@@ -89,26 +114,37 @@ export default function AllTasksPage() {
 
                 setPropertyValues(values)
                 setRecurringTasks(recurring)
+
+                // Cache the data
+                cache.set(cacheKey, {
+                    tasks: data,
+                    properties: propsData || [],
+                    propertyValues: values,
+                    recurringTasks: recurring
+                })
             }
             setLoading(false)
         }
 
         fetchAllTasks()
-    }, [categories, selectedCategory])
+    }, [user])
 
     // Function to update a property value
-    const updateProperty = async (pageId: string, propertyId: string, value: any) => {
-        const { error } = await setPropertyValue(pageId, propertyId, value)
-
+    const updateProperty = async (taskId: string, propertyId: string, value: any) => {
+        const { error } = await setPropertyValue(taskId, propertyId, value)
         if (!error) {
             // Update local state
             setPropertyValues(prev => ({
                 ...prev,
-                [pageId]: {
-                    ...(prev[pageId] || {}),
+                [taskId]: {
+                    ...(prev[taskId] || {}),
                     [propertyId]: value
                 }
             }))
+
+            // Invalidate cache for real-time updates across pages
+            cache.invalidate('all-tasks-data')
+            cache.invalidate('home-stats')
         }
     }
 
@@ -119,6 +155,71 @@ export default function AllTasksPage() {
         if (!error) {
             // Remove from local state
             setAllTasks(prev => prev.filter(t => t.id !== taskId))
+            // Invalidate cache
+            cache.invalidate('all-tasks-data')
+        }
+    }
+
+    // Function to add a new task
+    const handleAddTask = async (
+        title: string,
+        icon?: string,
+        status?: string,
+        priority?: string,
+        dueDate?: Date,
+        reminderOffset?: number,
+        categoryId?: string
+    ) => {
+        if (!categoryId) return
+
+        try {
+            // Create the task
+            const { data: newTask, error } = await createPage(categoryId, title, icon || "📝")
+
+            if (error || !newTask) {
+                console.error("Error creating task:", error)
+                return
+            }
+
+            // Get properties for this category
+            const { data: categoryProperties } = await supabase
+                .from("task_properties")
+                .select("*")
+                .eq("database_id", categoryId)
+
+            if (categoryProperties) {
+                // Set status
+                if (status) {
+                    const statusProp = categoryProperties.find(p => p.name === "Status")
+                    if (statusProp) {
+                        await setPropertyValue(newTask.id, statusProp.id, status)
+                    }
+                }
+
+                // Set priority
+                if (priority) {
+                    const priorityProp = categoryProperties.find(p => p.name === "Priority")
+                    if (priorityProp) {
+                        await setPropertyValue(newTask.id, priorityProp.id, priority)
+                    }
+                }
+
+                // Set due date
+                if (dueDate) {
+                    const dueDateProp = categoryProperties.find(p => p.name === "Due Date")
+                    if (dueDateProp) {
+                        await setPropertyValue(newTask.id, dueDateProp.id, dueDate.toISOString())
+                    }
+                }
+            }
+
+            // Refresh tasks
+            setAllTasks(prev => [newTask, ...prev])
+            setShowAddDialog(false)
+            // Invalidate cache
+            cache.invalidate('all-tasks-data')
+        } catch (error) {
+            console.error("Error in handleAddTask:", error)
         }
     }
 
@@ -205,13 +306,19 @@ export default function AllTasksPage() {
                             const category = categories.find(c => c.id === task.category_id)
                             const taskValues = propertyValues[task.id] || {}
 
-                            // Find specific properties
-                            const statusProp = properties.find(p => p.name === "Status")
-                            const priorityProp = properties.find(p => p.name === "Priority")
-                            const dueDateProp = properties.find(p => p.name === "Due Date")
+                            // Find specific properties FOR THIS CATEGORY
+                            const statusProp = properties.find(p =>
+                                p.name === "Status" && p.category_id === task.category_id
+                            )
+                            const priorityProp = properties.find(p =>
+                                p.name === "Priority" && p.category_id === task.category_id
+                            )
+                            const dueDateProp = properties.find(p =>
+                                p.name === "Due Date" && p.category_id === task.category_id
+                            )
 
-                            const statusVal = statusProp ? taskValues[statusProp.id] : null
-                            const priorityVal = priorityProp ? taskValues[priorityProp.id] : null
+                            const statusVal = statusProp ? (taskValues[statusProp.id] || "Not Started") : "Not Started"
+                            const priorityVal = priorityProp ? (taskValues[priorityProp.id] || "Medium") : "Medium"
                             const dueDateVal = dueDateProp ? taskValues[dueDateProp.id] : null
                             const isOverdue = dueDateVal && statusVal !== "Completed" && new Date(dueDateVal) < new Date()
 
@@ -333,6 +440,26 @@ export default function AllTasksPage() {
                         })
                     )}
                 </div>
+
+                {/* FAB for Adding Tasks */}
+                <FloatingActionButton
+                    icon={Plus}
+                    onClick={() => setShowAddDialog(true)}
+                    position="bottom-right"
+                    gradient="primary"
+                    label="Add Task"
+                    className="mb-20"
+                />
+
+                {/* Add Task Dialog */}
+                <AddTaskDialog
+                    open={showAddDialog}
+                    onOpenChange={setShowAddDialog}
+                    onAdd={handleAddTask}
+                    properties={properties}
+                    showCategorySelector={true}
+                    categories={categories}
+                />
 
                 {/* Bottom Navigation */}
                 <BottomNav

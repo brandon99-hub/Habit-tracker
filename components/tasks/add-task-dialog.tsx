@@ -37,9 +37,13 @@ import { TimePicker } from "@/components/ui/time-picker"
 type Props = {
     open: boolean
     onOpenChange: (open: boolean) => void
-    onAdd: (title: string, icon?: string, status?: string, priority?: string, dueDate?: Date, reminderOffset?: number) => void
+    onAdd: (title: string, icon?: string, status?: string, priority?: string, dueDate?: Date, reminderOffset?: number, categoryId?: string) => void
     properties: any[]
     gradient?: string
+    // New props for category selection
+    showCategorySelector?: boolean
+    categories?: Array<{ id: string; name: string; icon?: string | null }>
+    defaultCategoryId?: string
 }
 
 type IconOption = {
@@ -65,15 +69,16 @@ const iconOptions: IconOption[] = [
     { name: "Mail", icon: Mail },
 ]
 
-export function AddTaskDialog({ open, onOpenChange, onAdd, properties, gradient }: Props) {
+export function AddTaskDialog({ open, onOpenChange, onAdd, properties, gradient, showCategorySelector, categories, defaultCategoryId }: Props) {
     const [title, setTitle] = useState("")
     const [selectedIcon, setSelectedIcon] = useState("")
     const [status, setStatus] = useState("Not Started")
     const [priority, setPriority] = useState("Medium")
-    const [dueDate, setDueDate] = useState<Date>()
+    const [dueDate, setDueDate] = useState<Date | undefined>()
     const [time, setTime] = useState("")
     const [enableReminder, setEnableReminder] = useState(false)
-    const [reminderOffset, setReminderOffset] = useState("0") // 0 means at time of event
+    const [reminderOffset, setReminderOffset] = useState("0")
+    const [selectedCategory, setSelectedCategory] = useState(defaultCategoryId || "") // 0 means at time of event
 
     const statusProp = properties.find((p) => p.name === "Status")
     const priorityProp = properties.find((p) => p.name === "Priority")
@@ -102,7 +107,8 @@ export function AddTaskDialog({ open, onOpenChange, onAdd, properties, gradient 
                 status,
                 priority,
                 finalDate,
-                offset
+                offset,
+                showCategorySelector ? selectedCategory : undefined
             )
 
             // Reset form
@@ -114,6 +120,9 @@ export function AddTaskDialog({ open, onOpenChange, onAdd, properties, gradient 
             setTime("")
             setEnableReminder(false)
             setReminderOffset("0")
+            if (showCategorySelector) {
+                setSelectedCategory(defaultCategoryId || "")
+            }
         }
     }
 
@@ -144,6 +153,28 @@ export function AddTaskDialog({ open, onOpenChange, onAdd, properties, gradient 
                         <AccordionItem value="details">
                             <AccordionTrigger>Task Details</AccordionTrigger>
                             <AccordionContent className="space-y-4 pt-2">
+                                {/* Category Selector (only in All Tasks page) */}
+                                {showCategorySelector && categories && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="category">Category *</Label>
+                                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                                            <SelectTrigger id="category">
+                                                <SelectValue placeholder="Select a category..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {categories.map(cat => (
+                                                    <SelectItem key={cat.id} value={cat.id}>
+                                                        <span className="flex items-center gap-2">
+                                                            {cat.icon && <span className="text-lg">{cat.icon}</span>}
+                                                            <span>{cat.name}</span>
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+
                                 {/* Icon Selection */}
                                 <div className="space-y-2">
                                     <Label>Icon (optional)</Label>

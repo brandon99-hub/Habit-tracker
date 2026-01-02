@@ -22,9 +22,16 @@ type Props = {
 export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurring, onSuccess }: Props) {
     const { toast } = useToast()
     const [pattern, setPattern] = useState(existingRecurring?.pattern || "daily")
-    const [interval, setInterval] = useState(existingRecurring?.interval || 1)
-    const [daysOfWeek, setDaysOfWeek] = useState<number[]>(existingRecurring?.days_of_week || [])
-    const [endDate, setEndDate] = useState(existingRecurring?.end_date || "")
+    const [interval, setInterval] = useState(existingRecurring?.config?.interval || existingRecurring?.interval || 1)
+    const [daysOfWeek, setDaysOfWeek] = useState<number[]>(existingRecurring?.config?.days || existingRecurring?.days_of_week || [])
+
+    // New state for advanced options
+    const [skipWeekends, setSkipWeekends] = useState(existingRecurring?.skip_weekends || false)
+    const [monthPosition, setMonthPosition] = useState<"start" | "end" | "specific">(existingRecurring?.month_position || "specific")
+    const [dayOfMonth, setDayOfMonth] = useState(existingRecurring?.day_of_month || 1)
+    const [endType, setEndType] = useState<"never" | "date" | "count">("never")
+    const [endDate, setEndDate] = useState("")
+    const [occurrenceCount, setOccurrenceCount] = useState(10)
 
     // Update state when existingRecurring changes (e.g., after data load)
     // Update state when existingRecurring changes (e.g., after data load)
@@ -33,18 +40,27 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
             if (existingRecurring) {
                 console.log("Loading recurring settings:", existingRecurring)
                 setPattern(existingRecurring.pattern || "daily")
-                setInterval(existingRecurring.interval || 1)
-                setDaysOfWeek(existingRecurring.days_of_week || [])
+                setInterval(existingRecurring.config?.interval || existingRecurring.interval || 1)
+                setDaysOfWeek(existingRecurring.config?.days || existingRecurring.days_of_week || [])
+                setSkipWeekends(existingRecurring.skip_weekends || false)
+                setMonthPosition(existingRecurring.month_position || "specific")
+                setDayOfMonth(existingRecurring.day_of_month || 1)
+                setOccurrenceCount(existingRecurring.occurrence_count || 10)
 
                 // Format date for input "YYYY-MM-DD"
-                // Handle cases where it might be full ISO string
                 let formattedDate = ""
                 if (existingRecurring.end_date) {
                     try {
                         formattedDate = existingRecurring.end_date.split('T')[0]
+                        setEndType("date")
                     } catch (e) {
                         formattedDate = existingRecurring.end_date
+                        setEndType("date")
                     }
+                } else if (existingRecurring.occurrence_count) {
+                    setEndType("count")
+                } else {
+                    setEndType("never")
                 }
                 setEndDate(formattedDate)
             } else {
@@ -52,7 +68,12 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
                 setPattern("daily")
                 setInterval(1)
                 setDaysOfWeek([])
+                setSkipWeekends(false)
+                setMonthPosition("specific")
+                setDayOfMonth(1)
+                setEndType("never")
                 setEndDate("")
+                setOccurrenceCount(10)
             }
         }
     }, [open, existingRecurring])
@@ -69,12 +90,16 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
 
     const handleSave = async () => {
         try {
-            const recurringData = {
+            const recurringData: any = {
                 page_id: taskId,
                 pattern,
                 interval,
                 days_of_week: pattern === "weekly" ? daysOfWeek : null,
-                end_date: endDate || null,
+                skip_weekends: skipWeekends,
+                month_position: pattern === "monthly" ? monthPosition : null,
+                day_of_month: pattern === "monthly" && monthPosition === "specific" ? dayOfMonth : null,
+                end_date: endType === "date" ? endDate : null,
+                occurrence_count: endType === "count" ? occurrenceCount : null,
             }
 
             console.log("Saving recurring task with data:", recurringData)
@@ -207,14 +232,95 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
                         </div>
                     )}
 
+                    {/* Monthly Options */}
+                    {pattern === "monthly" && (
+                        <div className="space-y-2">
+                            <Label>On</Label>
+                            <Select value={monthPosition} onValueChange={(val: any) => setMonthPosition(val)}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="start">First day of month</SelectItem>
+                                    <SelectItem value="end">Last day of month</SelectItem>
+                                    <SelectItem value="specific">Specific day</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            {monthPosition === "specific" && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    <Input
+                                        type="number"
+                                        min="1"
+                                        max="31"
+                                        value={dayOfMonth}
+                                        onChange={(e) => setDayOfMonth(parseInt(e.target.value) || 1)}
+                                        className="w-20"
+                                    />
+                                    <span className="text-sm text-muted-foreground">day of month</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Advanced Options Divider */}
+                    <div className="border-t pt-4">
+                        <h4 className="text-sm font-semibold mb-3">Advanced Options</h4>
+                    </div>
+
+                    {/* Skip Weekends */}
+                    <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="skip-weekends"
+                            checked={skipWeekends}
+                            onCheckedChange={(checked) => setSkipWeekends(checked as boolean)}
+                        />
+                        <div className="flex-1">
+                            <Label htmlFor="skip-weekends" className="cursor-pointer">
+                                Skip weekends
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                                Move to Monday if falls on Saturday or Sunday
+                            </p>
+                        </div>
+                    </div>
+
                     {/* End Date */}
                     <div className="space-y-2">
-                        <Label>End Date (optional)</Label>
-                        <Input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                        />
+                        <Label>Ends</Label>
+                        <Select value={endType} onValueChange={(val: any) => setEndType(val)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="never">Never</SelectItem>
+                                <SelectItem value="date">On date</SelectItem>
+                                <SelectItem value="count">After occurrences</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        {endType === "date" && (
+                            <Input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="mt-2"
+                            />
+                        )}
+
+                        {endType === "count" && (
+                            <div className="flex items-center gap-2 mt-2">
+                                <span className="text-sm text-muted-foreground">After</span>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    value={occurrenceCount}
+                                    onChange={(e) => setOccurrenceCount(parseInt(e.target.value) || 1)}
+                                    className="w-20"
+                                />
+                                <span className="text-sm text-muted-foreground">occurrences</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

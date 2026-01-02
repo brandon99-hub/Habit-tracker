@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { PWAInstaller } from "@/components/pwa-installer"
 import { AuthProvider } from "@/lib/auth-context"
+import { CacheProvider } from "@/lib/cache-context"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
@@ -54,8 +55,10 @@ export default function RootLayout({
       <body className={`font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
-            {children}
-            <Toaster />
+            <CacheProvider>
+              {children}
+              <Toaster />
+            </CacheProvider>
           </AuthProvider>
           <PWAInstaller />
         </ThemeProvider>

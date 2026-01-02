@@ -201,11 +201,11 @@ export async function getPageWithProperties(pageId: string) {
     return { data: { ...page, property_values: values }, error: valuesError }
 }
 
-export async function createPage(databaseId: string, title: string, icon?: string) {
+export async function createPage(categoryId: string, title: string, icon?: string) {
     const { data, error } = await supabase
         .from("task_pages")
         .insert({
-            database_id: databaseId,
+            category_id: categoryId,
             title,
             icon,
         })

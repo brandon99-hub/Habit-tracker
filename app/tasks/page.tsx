@@ -2,6 +2,7 @@
 
 import { useCategories } from "@/hooks/use-categories"
 import { useAuth } from "@/lib/auth-context"
+import { useCache } from "@/lib/cache-context"
 import { Button } from "@/components/ui/button"
 import { StatCard } from "@/components/ui/stat-card"
 import { GradientCard } from "@/components/ui/gradient-card"
@@ -9,19 +10,23 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { FloatingActionButton } from "@/components/ui/floating-action-button"
 import { BottomNav } from "@/components/ui/bottom-nav"
 import { ProgressRing } from "@/components/ui/progress-ring"
-import { Plus, CheckCircle2, Clock, AlertCircle, Grid, Calendar, User, LogOut } from "lucide-react"
+import { Plus, CheckCircle2, Clock, AlertCircle, Grid, Calendar, User, LogOut, Zap } from "lucide-react"
 import { useState, useEffect } from "react"
 import { CreateCategoryDialog } from "@/components/tasks/create-category-dialog"
+import { QuickAddDialog } from "@/components/tasks/quick-add-dialog"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { getPropertyValues } from "@/lib/tasks/supabase-categories"
+import { createPage, setPropertyValue } from "@/lib/tasks/supabase-tasks"
 import { usePushSubscription } from "@/hooks/use-push-subscription"
 
 export default function TasksPage() {
     const { user, signOut } = useAuth()
     const { categories, loading, addCategory } = useCategories()
+    const cache = useCache()
     const [showCategoryDialog, setShowCategoryDialog] = useState(false)
+    const [showQuickAddDialog, setShowQuickAddDialog] = useState(false)
     const router = useRouter()
 
     const [stats, setStats] = useState({
@@ -44,63 +49,72 @@ export default function TasksPage() {
         async function fetchStats() {
             if (!user) return
 
-            // 1. Fetch properites to find "Status" and "Due Date" IDs
-            const { data: propsData } = await supabase
-                .from("task_properties")
-                .select("*")
+            const cacheKey = 'home-stats'
 
-            const statusProp = propsData?.find(p => p.name === "Status")
-            const dueDateProp = propsData?.find(p => p.name === "Due Date")
+            // Check cache first
+            const cached = cache.get<typeof stats>(cacheKey)
+            if (cached) {
+                setStats(cached)
+                return
+            }
 
-            // 2. Fetch all tasks
-            const { data: tasks, error } = await supabase
+            // Fetch all tasks
+            const { data: allTasks } = await supabase
                 .from("task_pages")
                 .select("*")
 
-            if (!tasks || error) return
+            if (!allTasks) return
 
+            // Get all property values
             let completedToday = 0
             let overdue = 0
             const today = new Date()
             today.setHours(0, 0, 0, 0)
 
-            // 3. For each task, check status and due date
-            // Note: In a larger app, we would use a more optimized SQL query or Edge Function
-            await Promise.all(tasks.map(async (task) => {
-                const { data: values } = await getPropertyValues(task.id)
+            for (const task of allTasks) {
+                const { data: propValues } = await getPropertyValues(task.id)
+                if (!propValues) continue
 
-                const statusVal = values?.find((v: any) => v.property_id === statusProp?.id)?.value
-                const dueDateVal = values?.find((v: any) => v.property_id === dueDateProp?.id)?.value
+                const statusValue = propValues.find((pv: any) => {
+                    return pv.property?.name === "Status"
+                })?.value
 
-                // Check Completed Today
-                // Assuming "Completed" is the completed status
-                if (statusVal === "Completed") {
-                    const updatedAt = new Date(task.updated_at) // task_pages has updated_at
+                const dueDateValue = propValues.find((pv: any) => {
+                    return pv.property?.name === "Due Date"
+                })?.value
+
+                // Count completed today
+                if (statusValue === "Completed") {
+                    const updatedAt = new Date(task.updated_at)
                     updatedAt.setHours(0, 0, 0, 0)
                     if (updatedAt.getTime() === today.getTime()) {
                         completedToday++
                     }
                 }
 
-                // Check Overdue
-                if (dueDateVal && statusVal !== "Completed") {
-                    const due = new Date(dueDateVal)
-                    // If due date is before today (not including today)
-                    if (due < today) {
+                // Count overdue (not completed and due date in past)
+                if (statusValue !== "Completed" && dueDateValue) {
+                    const dueDate = new Date(dueDateValue)
+                    dueDate.setHours(0, 0, 0, 0)
+                    if (dueDate < today) {
                         overdue++
                     }
                 }
-            }))
+            }
 
-            setStats({
-                total: tasks.length,
+            const newStats = {
+                total: allTasks.length,
                 completed: completedToday,
                 overdue: overdue
-            })
+            }
+
+            setStats(newStats)
+            // Cache the stats
+            cache.set(cacheKey, newStats, 2 * 60 * 1000) // Cache for 2 minutes
         }
 
         fetchStats()
-    }, [user])
+    }, [user, cache])
 
     const handleCreateCategory = async (
         name: string,
@@ -111,6 +125,61 @@ export default function TasksPage() {
     ) => {
         await addCategory(name, icon, description, color, gradient)
         setShowCategoryDialog(false)
+        // Invalidate cache when new category is added
+        cache.invalidate('home-stats')
+        cache.invalidate('all-tasks-data')
+    }
+
+    const handleQuickAddTask = async (
+        title: string,
+        categoryId: string,
+        priority?: string,
+        dueDate?: Date
+    ) => {
+        try {
+            // Create the task
+            const { data: newTask, error } = await createPage(categoryId, title, "📝")
+
+            if (error || !newTask) {
+                console.error("Error creating task:", error)
+                return
+            }
+
+            // Get properties for this category
+            const { data: properties } = await supabase
+                .from("task_properties")
+                .select("*")
+                .eq("category_id", categoryId)
+
+            if (properties) {
+                // Set priority if provided
+                if (priority) {
+                    const priorityProp = properties.find(p => p.name === "Priority")
+                    if (priorityProp) {
+                        await setPropertyValue(newTask.id, priorityProp.id, priority)
+                    }
+                }
+
+                // Set due date if provided
+                if (dueDate) {
+                    const dueDateProp = properties.find(p => p.name === "Due Date")
+                    if (dueDateProp) {
+                        await setPropertyValue(newTask.id, dueDateProp.id, dueDate.toISOString())
+                    }
+                }
+
+                // Set default status to "Not Started"
+                const statusProp = properties.find(p => p.name === "Status")
+                if (statusProp) {
+                    await setPropertyValue(newTask.id, statusProp.id, "Not Started")
+                }
+            }
+
+            // Navigate to the category page
+            router.push(`/tasks/category/${categoryId}`)
+        } catch (error) {
+            console.error("Error in handleQuickAddTask:", error)
+        }
     }
 
     const getGreeting = () => {
@@ -193,7 +262,7 @@ export default function TasksPage() {
                         </div>
                         <Button
                             onClick={() => setShowCategoryDialog(true)}
-                            className="gap-2 gradient-primary text-white border-0 hover:opacity-90 hidden md:flex"
+                            className="gap-2 gradient-primary text-white border-0 hover:opacity-90"
                         >
                             <Plus className="h-4 w-4" />
                             New Category
@@ -242,13 +311,13 @@ export default function TasksPage() {
                     )}
                 </div>
 
-                {/* Floating Action Button (Mobile) */}
+                {/* Floating Action Button (Mobile) - Quick Add */}
                 <FloatingActionButton
-                    icon={Plus}
-                    onClick={() => setShowCategoryDialog(true)}
+                    icon={Zap}
+                    onClick={() => setShowQuickAddDialog(true)}
                     position="bottom-right"
                     gradient="primary"
-                    label="Add"
+                    label="Quick Add"
                     className="md:hidden mb-20"
                 />
 
@@ -267,6 +336,14 @@ export default function TasksPage() {
                     open={showCategoryDialog}
                     onOpenChange={setShowCategoryDialog}
                     onCreate={handleCreateCategory}
+                />
+
+                {/* Quick Add Dialog */}
+                <QuickAddDialog
+                    open={showQuickAddDialog}
+                    onOpenChange={setShowQuickAddDialog}
+                    onAdd={handleQuickAddTask}
+                    categories={categories}
                 />
             </div>
         </div>

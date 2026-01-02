@@ -4,6 +4,7 @@ import { use, useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useTasks } from "@/hooks/use-tasks"
 import { useCategories } from "@/hooks/use-categories"
+import { useCache } from "@/lib/cache-context"
 import { Button } from "@/components/ui/button"
 import { Plus, ArrowLeft, Table as TableIcon, Calendar as CalendarIcon, Search, Grid, User, CheckCircle2, MoreVertical, Edit2, Trash2, X } from "lucide-react"
 import { BottomNav } from "@/components/ui/bottom-nav"
@@ -31,6 +32,7 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
     const { id } = use(params)
     const router = useRouter()
     const { user } = useAuth()
+    const cache = useCache()
     const { tasks, properties, loading: tasksLoading, addTask, editTask, removeTask, updateProperty } = useTasks(id)
     const { categories, loading: categoriesLoading, removeCategory } = useCategories()
     const category = useMemo(() => categories.find(c => c.id === id), [categories, id])
@@ -80,6 +82,20 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
 
     // Fetch property values and recurring status for all tasks
     const fetchAllData = async () => {
+        const cacheKey = `category-${id}-data`
+
+        // Check cache first
+        const cached = cache.get<{
+            propertyValues: Record<string, Record<string, any>>
+            recurringTasks: Record<string, any>
+        }>(cacheKey)
+
+        if (cached) {
+            setPropertyValues(cached.propertyValues)
+            setRecurringTasks(cached.recurringTasks)
+            return
+        }
+
         const values: Record<string, Record<string, any>> = {}
         const recurring: Record<string, any> = {}
 
@@ -103,6 +119,12 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
 
         setPropertyValues(values)
         setRecurringTasks(recurring)
+
+        // Cache the data
+        cache.set(cacheKey, {
+            propertyValues: values,
+            recurringTasks: recurring
+        })
     }
 
     // Wrapper for updateProperty that also updates local state
@@ -118,6 +140,11 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                     [propertyId]: value
                 }
             }))
+
+            // Invalidate cache for real-time updates
+            cache.invalidate(`category-${id}-data`)
+            cache.invalidate('all-tasks-data')
+            cache.invalidate('home-stats')
         }
 
         return result
