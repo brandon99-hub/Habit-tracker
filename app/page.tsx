@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Check, Plus, MoreVertical, Archive, Pause, Play, Trash2, MessageSquare, Moon, Sun, Edit } from "lucide-react"
@@ -56,9 +56,9 @@ export default function HabitForgePage() {
   const [mounted, setMounted] = useState(false)
 
   // Fix for theme toggle hydration
-  useState(() => {
+  useEffect(() => {
     setMounted(true)
-  })
+  }, [])
 
   const handleToggleHabit = async (habitId: string, value?: number, note?: string) => {
     await toggleHabit(habitId, value, note)
