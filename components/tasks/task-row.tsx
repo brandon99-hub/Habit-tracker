@@ -62,7 +62,8 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
             .select("*")
             .eq("page_id", task.id)
             .single()
-            .then(({ data }) => {
+            .then(({ data, error }) => {
+                console.log("Recurring data for task", task.id, ":", data, error)
                 if (data) setRecurringInfo(data)
             })
 
@@ -157,21 +158,40 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
     const getRecurringText = () => {
         if (!recurringInfo) return null
 
+        console.log("Formatting recurring info:", recurringInfo)
+
         const pattern = recurringInfo.pattern
+        const interval = recurringInfo.interval || 1
         const days = recurringInfo.days_of_week || []
 
         if (pattern === 'daily') {
-            return 'Daily'
+            return interval === 1 ? 'Daily' : `Every ${interval} days`
         } else if (pattern === 'weekly') {
             const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
             const selectedDays = days.map((d: number) => dayNames[d]).join(', ')
-            return `Weekly on ${selectedDays}`
+            const intervalText = interval === 1 ? '' : `Every ${interval} weeks on `
+            return `${intervalText}${selectedDays || 'Weekly'}`
         } else if (pattern === 'monthly') {
+            const monthPosition = recurringInfo.month_position
             const day = recurringInfo.day_of_month
-            if (day) {
-                return `Monthly on day ${day}`
+
+            let positionText = ''
+            if (monthPosition === 'start') {
+                positionText = 'First day of month'
+            } else if (monthPosition === 'end') {
+                positionText = 'Last day of month'
+            } else if (monthPosition === 'specific' && day) {
+                positionText = `Day ${day} of month`
+            } else if (day) {
+                positionText = `Day ${day} of month`
+            } else {
+                positionText = 'Monthly'
             }
-            return 'Monthly'
+
+            const intervalText = interval === 1 ? '' : `Every ${interval} months - `
+            return `${intervalText}${positionText}`
+        } else if (pattern === 'weekdays') {
+            return 'Weekdays (Mon-Fri)'
         }
         return pattern.charAt(0).toUpperCase() + pattern.slice(1)
     }
@@ -275,12 +295,36 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
                                         </Button>
                                     </div>
                                 ) : (
-                                    <h3
-                                        className="font-medium text-base leading-tight cursor-pointer hover:text-primary transition-colors break-words"
-                                        onClick={() => setIsEditing(true)}
-                                    >
-                                        {task.title}
-                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3
+                                            className="font-medium text-base leading-tight cursor-pointer hover:text-primary transition-colors break-words"
+                                            onClick={() => setIsEditing(true)}
+                                        >
+                                            {task.title}
+                                        </h3>
+                                        {/* Overdue Indicator */}
+                                        {(() => {
+                                            const dueDateValue = propertyValues[dueDateProperty?.id || '']
+                                            const statusValue = propertyValues[statusProperty?.id || '']
+
+                                            if (dueDateValue && statusValue !== 'Completed') {
+                                                const dueDate = new Date(dueDateValue)
+                                                const today = new Date()
+                                                dueDate.setHours(0, 0, 0, 0)
+                                                today.setHours(0, 0, 0, 0)
+
+                                                if (dueDate < today) {
+                                                    return (
+                                                        <div
+                                                            className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0"
+                                                            title="Overdue"
+                                                        />
+                                                    )
+                                                }
+                                            }
+                                            return null
+                                        })()}
+                                    </div>
                                 )}
                             </div>
 

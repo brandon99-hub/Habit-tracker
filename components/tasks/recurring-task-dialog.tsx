@@ -106,7 +106,7 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
 
             // First, check if a recurring task already exists for this page
             const { data: existingData } = await supabase
-                .from("task_recurring")
+                .from("recurring_tasks")
                 .select("*")
                 .eq("page_id", taskId)
                 .maybeSingle()
@@ -141,12 +141,13 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
 
             onOpenChange(false)
 
-            // Trigger refresh
+            // Trigger immediate refresh
             if (onSuccess) {
-                setTimeout(() => {
-                    onSuccess()
-                }, 500) // Small delay to ensure toast shows
+                onSuccess()
             }
+
+            // Force page refresh to show updated recurring info
+            window.location.reload()
         } catch (error: any) {
             console.error("Exception saving recurring task:", error)
             toast({
@@ -165,7 +166,7 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-2xl gradient-text">Set Recurring Task</DialogTitle>
                 </DialogHeader>
@@ -247,17 +248,30 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
                                 </SelectContent>
                             </Select>
 
+
                             {monthPosition === "specific" && (
-                                <div className="flex items-center gap-2 mt-2">
-                                    <Input
-                                        type="number"
-                                        min="1"
-                                        max="31"
-                                        value={dayOfMonth}
-                                        onChange={(e) => setDayOfMonth(parseInt(e.target.value) || 1)}
-                                        className="w-20"
-                                    />
-                                    <span className="text-sm text-muted-foreground">day of month</span>
+                                <div className="space-y-2 mt-4">
+                                    <Label>Select day of month</Label>
+                                    <div className="grid grid-cols-7 gap-2">
+                                        {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                            <button
+                                                key={day}
+                                                type="button"
+                                                onClick={() => setDayOfMonth(day)}
+                                                className={`
+                                                    h-10 w-full rounded-lg border-2 transition-all text-sm font-medium
+                                                    ${dayOfMonth === day
+                                                        ? "border-primary bg-primary text-primary-foreground"
+                                                        : "border-border hover:border-primary/50 hover:bg-accent"}
+                                                `}
+                                            >
+                                                {day}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Selected: Day {dayOfMonth} of each month
+                                    </p>
                                 </div>
                             )}
                         </div>

@@ -33,6 +33,7 @@ import {
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { TimePicker } from "@/components/ui/time-picker"
+import { useUserPreferences } from "@/hooks/use-user-preferences"
 
 type Props = {
     open: boolean
@@ -70,10 +71,11 @@ const iconOptions: IconOption[] = [
 ]
 
 export function AddTaskDialog({ open, onOpenChange, onAdd, properties, gradient, showCategorySelector, categories, defaultCategoryId }: Props) {
+    const { preferences } = useUserPreferences()
     const [title, setTitle] = useState("")
     const [selectedIcon, setSelectedIcon] = useState("")
-    const [status, setStatus] = useState("Not Started")
-    const [priority, setPriority] = useState("Medium")
+    const [status, setStatus] = useState(preferences.defaultStatus)
+    const [priority, setPriority] = useState(preferences.defaultPriority)
     const [dueDate, setDueDate] = useState<Date | undefined>()
     const [time, setTime] = useState("")
     const [enableReminder, setEnableReminder] = useState(false)

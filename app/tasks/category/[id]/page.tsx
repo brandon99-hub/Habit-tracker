@@ -386,7 +386,7 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                         </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                         <div className="flex items-center gap-2 sm:gap-4">
                             {category?.icon && (
                                 <div className={cn(
@@ -396,13 +396,18 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                                     {category.icon}
                                 </div>
                             )}
-                            <div className="min-w-0">
-                                <h1 className={cn(
-                                    "text-3xl sm:text-4xl font-bold mb-0.5 truncate",
-                                    category?.gradient ? `gradient-text` : ""
-                                )}>
-                                    {category?.name || "Tasks"}
-                                </h1>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <h1 className={cn(
+                                        "text-3xl sm:text-4xl font-bold truncate",
+                                        category?.gradient ? `gradient-text` : ""
+                                    )}>
+                                        {category?.name || "Tasks"}
+                                    </h1>
+                                    <span className="text-sm font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full whitespace-nowrap shrink-0">
+                                        {sortedTasks.length}
+                                    </span>
+                                </div>
                                 <p className="text-sm text-muted-foreground truncate">
                                     {category?.description || `${sortedTasks.length} tasks`}
                                 </p>
@@ -415,7 +420,7 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                     </div>
 
                     {/* View Switcher */}
-                    <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-4 mt-6">
                         <Tabs value={view} onValueChange={(v) => setView(v as "table" | "calendar")}>
                             <TabsList>
                                 <TabsTrigger value="table" className="gap-2">

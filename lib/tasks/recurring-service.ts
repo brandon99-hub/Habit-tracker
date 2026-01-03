@@ -106,13 +106,18 @@ export async function createRecurringTask(data: {
     console.log("[RECURRING] Inserting into database:", JSON.stringify(insertData, null, 2))
 
     const { data: result, error } = await supabase
-        .from("task_recurring")
+        .from("recurring_tasks")
         .insert(insertData)
         .select()
         .single()
 
     if (error) {
-        console.error("[RECURRING] Error creating recurring task:", error)
+        console.error("[RECURRING] Error creating recurring task:")
+        console.error("  Code:", error.code)
+        console.error("  Message:", error.message)
+        console.error("  Details:", error.details)
+        console.error("  Hint:", error.hint)
+        console.error("  Full error:", JSON.stringify(error, null, 2))
     } else {
         console.log("[RECURRING] Successfully created recurring task:", result)
     }
@@ -123,7 +128,7 @@ export async function createRecurringTask(data: {
 // Get recurring task for a page
 export async function getRecurringTask(pageId: string) {
     const { data, error } = await supabase
-        .from("task_recurring")
+        .from("recurring_tasks")
         .select("*")
         .eq("page_id", pageId)
         .maybeSingle() // Use maybeSingle instead of single to avoid 406 errors
@@ -184,7 +189,7 @@ export async function updateRecurringTask(
     if (data.occurrence_count !== undefined) updateData.occurrence_count = data.occurrence_count
 
     const { data: result, error } = await supabase
-        .from("task_recurring")
+        .from("recurring_tasks")
         .update(updateData)
         .eq("id", id)
         .select()
@@ -201,7 +206,7 @@ export async function updateRecurringTask(
 
 // Delete recurring task
 export async function deleteRecurringTask(id: string) {
-    const { error } = await supabase.from("task_recurring").delete().eq("id", id)
+    const { error } = await supabase.from("recurring_tasks").delete().eq("id", id)
 
     return { error }
 }
@@ -298,7 +303,7 @@ function calculateNextOccurrence(
 // Update next occurrence after task completion
 export async function updateNextOccurrence(recurringTaskId: string) {
     const { data: recurring } = await supabase
-        .from("task_recurring")
+        .from("recurring_tasks")
         .select("*")
         .eq("id", recurringTaskId)
         .single()
@@ -308,7 +313,7 @@ export async function updateNextOccurrence(recurringTaskId: string) {
     const nextOccurrence = calculateNextOccurrence(recurring.pattern, recurring.config)
 
     const { data, error } = await supabase
-        .from("task_recurring")
+        .from("recurring_tasks")
         .update({
             next_occurrence: nextOccurrence.toISOString(),
         })
@@ -325,7 +330,7 @@ export async function checkRecurringTasks(userId: string) {
 
     // Get all recurring tasks that are due
     const { data: recurringTasks } = await supabase
-        .from("task_recurring")
+        .from("recurring_tasks")
         .select("*, task_pages!inner(category_id, task_categories!inner(user_id))")
         .lte("next_occurrence", now.toISOString())
 

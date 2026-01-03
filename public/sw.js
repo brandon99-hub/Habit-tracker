@@ -48,12 +48,12 @@ self.addEventListener('fetch', (event) => {
 // Push notification event
 self.addEventListener('push', (event) => {
     const data = event.data ? event.data.json() : {};
-    const title = data.title || 'HabitForge';
+    const title = data.title || 'TaskFlow';
     const options = {
-        body: data.body || 'Time to complete your habits!',
+        body: data.body || 'Time to complete your tasks!',
         icon: '/logo.png',
         badge: '/logo.png',
-        vibrate: [200, 100, 200],
+        vibrate: data.vibrate || [200, 100, 200, 100, 200], // More prominent vibration
         data: data.data || {},
         actions: data.actions || [
             {
@@ -67,8 +67,10 @@ self.addEventListener('push', (event) => {
                 icon: '/logo.png'
             }
         ],
-        tag: data.tag || 'habit-reminder',
-        requireInteraction: false,
+        tag: data.tag || 'task-reminder',
+        requireInteraction: data.requireInteraction !== undefined ? data.requireInteraction : true, // Respect backend setting, default to true
+        renotify: data.renotify || true, // Re-alert for same tag
+        silent: false, // Always play sound
     };
 
     event.waitUntil(

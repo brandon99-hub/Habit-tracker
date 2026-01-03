@@ -8,12 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { BottomNav } from "@/components/ui/bottom-nav"
-import { Grid, Calendar, User, CheckCircle2, ArrowLeft, Bell, Lock, Mail } from "lucide-react"
+import { Grid, Calendar, User, CheckCircle2, ArrowLeft, Bell, Lock, Mail, LogOut } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { InstallAppSection } from "@/components/tasks/install-app-section"
 import { usePushSubscription } from "@/hooks/use-push-subscription"
+import { PreferencesCard } from "@/components/profile/preferences-card"
+import { DataManagementCard } from "@/components/profile/data-management-card"
+import { UserPreferences, DEFAULT_PREFERENCES } from "@/lib/profile/preferences"
+import { format } from "date-fns"
 
 export default function ProfilePage() {
     const router = useRouter()
@@ -25,6 +29,14 @@ export default function ProfilePage() {
     const [isChangingPassword, setIsChangingPassword] = useState(false)
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
+    const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES)
+
+    // Load user preferences
+    useEffect(() => {
+        if (user?.user_metadata?.preferences) {
+            setPreferences({ ...DEFAULT_PREFERENCES, ...user.user_metadata.preferences })
+        }
+    }, [user])
 
     // Auto-sync browser subscription to database if it exists
     useEffect(() => {
@@ -146,19 +158,70 @@ export default function ProfilePage() {
             <div className="mx-auto max-w-3xl px-4 py-6">
                 {/* Header */}
                 <header className="mb-6">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push("/tasks")}
-                        className="mb-4 gap-2 md:hidden"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back
-                    </Button>
+                    <div className="flex items-center justify-between mb-4">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push("/tasks")}
+                            className="gap-2 md:hidden"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Back
+                        </Button>
 
-                    <h1 className="text-3xl font-bold gradient-text mb-2">Profile</h1>
+                        {/* Sign Out Button - Top Right */}
+                        <Button
+                            onClick={signOut}
+                            variant="destructive"
+                            size="sm"
+                            className="gap-2"
+                        >
+                            <LogOut className="h-4 w-4" />
+                            Sign Out
+                        </Button>
+                    </div>
+
+                    {/* Profile Header with Avatar */}
+                    <div className="flex items-center gap-4 mb-6">
+                        {/* Avatar */}
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ring-background flex-shrink-0">
+                            {(() => {
+                                const userName = name || email
+                                if (userName && userName.trim()) {
+                                    const names = userName.trim().split(' ')
+                                    if (names.length >= 2) {
+                                        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+                                    }
+                                    return userName.substring(0, 2).toUpperCase()
+                                }
+                                return email.substring(0, 2).toUpperCase()
+                            })()}
+                        </div>
+
+                        {/* Title and User Info */}
+                        <div className="flex-1 min-w-0">
+                            <h1 className="text-3xl font-bold gradient-text mb-1">Profile</h1>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                                <p className="text-lg font-semibold text-foreground truncate">
+                                    {name || email}
+                                </p>
+                                <span className="hidden sm:inline text-muted-foreground">•</span>
+                                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    Member since {(() => {
+                                        try {
+                                            return format(new Date(user?.created_at || new Date()), 'MMMM yyyy')
+                                        } catch {
+                                            return 'Recently'
+                                        }
+                                    })()}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <p className="text-sm text-muted-foreground">
-                        Manage your account settings
+                        Manage your account settings and preferences
                     </p>
                 </header>
 
@@ -256,6 +319,12 @@ export default function ProfilePage() {
                     )}
                 </Card>
 
+                {/* App Preferences */}
+                <PreferencesCard
+                    initialPreferences={preferences}
+                    onPreferencesUpdate={(prefs) => setPreferences(prefs)}
+                />
+
                 {/* Notifications */}
                 <Card className="p-6 mb-4">
                     <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -298,16 +367,8 @@ export default function ProfilePage() {
                     </div>
                 </Card>
 
-                {/* Sign Out */}
-                <Card className="p-6 mb-4">
-                    <Button
-                        onClick={signOut}
-                        variant="destructive"
-                        className="w-full"
-                    >
-                        Sign Out
-                    </Button>
-                </Card>
+                {/* Data Management */}
+                <DataManagementCard userId={user?.id || ""} />
 
                 {/* Install App Section */}
                 <InstallAppSection />

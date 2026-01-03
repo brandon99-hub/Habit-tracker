@@ -20,11 +20,13 @@ import { supabase } from "@/lib/supabase"
 import { getPropertyValues } from "@/lib/tasks/supabase-categories"
 import { createPage, setPropertyValue } from "@/lib/tasks/supabase-tasks"
 import { usePushSubscription } from "@/hooks/use-push-subscription"
+import { useToast } from "@/hooks/use-toast"
 
 export default function TasksPage() {
     const { user, signOut } = useAuth()
     const { categories, loading, addCategory } = useCategories()
     const cache = useCache()
+    const { toast } = useToast()
     const [showCategoryDialog, setShowCategoryDialog] = useState(false)
     const [showQuickAddDialog, setShowQuickAddDialog] = useState(false)
     const router = useRouter()
@@ -49,17 +51,9 @@ export default function TasksPage() {
         async function fetchStats() {
             if (!user) return
 
-            const cacheKey = 'home-stats'
+            // NO CACHING - Always calculate fresh stats for accuracy
 
-            // Check cache first synchronously
-            const cached = cache.get<typeof stats>(cacheKey)
-            if (cached) {
-                // Use cached data immediately - no loading state needed
-                setStats(cached)
-                return
-            }
-
-            // No cache - fetch from database
+            // Fetch all tasks
             const { data: allTasks } = await supabase
                 .from("task_pages")
                 .select("*")
@@ -76,17 +70,27 @@ export default function TasksPage() {
                 const { data: propValues } = await getPropertyValues(task.id)
                 if (!propValues) continue
 
+                // Find status property for THIS task's category
                 const statusValue = propValues.find((pv: any) => {
-                    return pv.property?.name === "Status"
+                    return pv.property?.name === "Status" &&
+                        pv.property?.category_id === task.category_id
                 })?.value
 
+                // Find due date property for THIS task's category
                 const dueDateValue = propValues.find((pv: any) => {
-                    return pv.property?.name === "Due Date"
+                    return pv.property?.name === "Due Date" &&
+                        pv.property?.category_id === task.category_id
                 })?.value
 
-                // Count completed today
+                // Count completed TODAY (not all time)
                 if (statusValue === "Completed") {
-                    completedToday++
+                    // Check if task was completed today by checking updated_at
+                    const updatedAt = new Date(task.updated_at)
+                    updatedAt.setHours(0, 0, 0, 0)
+
+                    if (updatedAt.getTime() === today.getTime()) {
+                        completedToday++
+                    }
                 }
 
                 // Count overdue (not completed and due date in past)
@@ -106,12 +110,11 @@ export default function TasksPage() {
             }
 
             setStats(newStats)
-            // Cache the stats
-            cache.set(cacheKey, newStats, 2 * 60 * 1000) // Cache for 2 minutes
+            // NO CACHING - Stats should always be fresh
         }
 
         fetchStats()
-    }, [user, cache])
+    }, [user])
 
     const handleCreateCategory = async (
         name: string,
@@ -127,18 +130,26 @@ export default function TasksPage() {
         cache.invalidate('all-tasks-data')
     }
 
-    const handleQuickAddTask = async (
-        title: string,
-        categoryId: string,
-        priority?: string,
-        dueDate?: Date
-    ) => {
+    const handleQuickAddTask = async (title: string, categoryId: string, priority?: string, dueDate?: Date) => {
         try {
-            // Create the task
-            const { data: newTask, error } = await createPage(categoryId, title, "📝")
+            // Random icon selection for Quick Add tasks
+            const taskIcons = [
+                'Target', 'CheckCircle', 'Circle', 'Star', 'Zap', 'Flame',
+                'Sparkles', 'Trophy', 'Award', 'Flag', 'Bookmark', 'Heart',
+                'Clock', 'Calendar', 'Bell', 'MessageSquare', 'Mail', 'Phone',
+                'Briefcase', 'FileText', 'Clipboard', 'Folder', 'Package', 'ShoppingCart'
+            ]
+            const randomIcon = taskIcons[Math.floor(Math.random() * taskIcons.length)]
+
+            // Create the task with random icon
+            const { data: newTask, error } = await createPage(categoryId, title, randomIcon)
 
             if (error || !newTask) {
-                console.error("Error creating task:", error)
+                toast({
+                    title: "Error",
+                    description: "Failed to create task. Please try again.",
+                    variant: "destructive"
+                })
                 return
             }
 
@@ -148,34 +159,63 @@ export default function TasksPage() {
                 .select("*")
                 .eq("category_id", categoryId)
 
-            if (properties) {
-                // Set priority if provided
-                if (priority) {
-                    const priorityProp = properties.find(p => p.name === "Priority")
-                    if (priorityProp) {
-                        await setPropertyValue(newTask.id, priorityProp.id, priority)
-                    }
-                }
+            if (!properties) {
+                toast({
+                    title: "Warning",
+                    description: "Task created but properties could not be set.",
+                    variant: "destructive"
+                })
+                return
+            }
 
-                // Set due date if provided
-                if (dueDate) {
-                    const dueDateProp = properties.find(p => p.name === "Due Date")
-                    if (dueDateProp) {
-                        await setPropertyValue(newTask.id, dueDateProp.id, dueDate.toISOString())
-                    }
-                }
+            // Get user preferences
+            const userPrefs = user?.user_metadata?.preferences || {
+                defaultStatus: 'Not Started',
+                defaultPriority: 'Medium'
+            }
 
-                // Set default status to "Not Started"
-                const statusProp = properties.find(p => p.name === "Status")
-                if (statusProp) {
-                    await setPropertyValue(newTask.id, statusProp.id, "Not Started")
+            // Set status (use preference as default)
+            const statusProp = properties.find((p: any) => p.name === "Status")
+            if (statusProp) {
+                await setPropertyValue(newTask.id, statusProp.id, userPrefs.defaultStatus)
+            }
+
+            // Set priority (use provided or preference)
+            const priorityProp = properties.find((p: any) => p.name === "Priority")
+            if (priorityProp) {
+                const finalPriority = priority || userPrefs.defaultPriority
+                await setPropertyValue(newTask.id, priorityProp.id, finalPriority)
+            }
+
+            // Set due date if provided
+            if (dueDate) {
+                const dueDateProp = properties.find((p: any) => p.name === "Due Date")
+                if (dueDateProp) {
+                    await setPropertyValue(newTask.id, dueDateProp.id, dueDate.toISOString())
                 }
             }
+
+            // Show success toast
+            toast({
+                title: "Task created!",
+                description: `"${title}" has been added successfully.`,
+            })
+
+            // Invalidate caches
+            cache.invalidate('home-stats')
+            cache.invalidate('all-tasks-data')
+            cache.invalidate(`category-${categoryId}-data`)
+            cache.invalidate(`category-${categoryId}-tasks`)
 
             // Navigate to the category page
             router.push(`/tasks/category/${categoryId}`)
         } catch (error) {
             console.error("Error in handleQuickAddTask:", error)
+            toast({
+                title: "Error",
+                description: "An unexpected error occurred. Please try again.",
+                variant: "destructive"
+            })
         }
     }
 

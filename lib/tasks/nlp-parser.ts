@@ -29,9 +29,10 @@ export function parseTaskInput(
     }
 
     // 2. Extract category (@Work or #Work)
-    const categoryMatch = remaining.match(/[@#](\w+)/i)
+    // Updated regex to support multi-word categories like "Personal Task" or "Work-Life Balance"
+    const categoryMatch = remaining.match(/[@#]([\w\s-]+?)(?=\s+[@#!]|\s+(?:today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|at|in|next)|$)/i)
     if (categoryMatch) {
-        const categoryName = categoryMatch[1]
+        const categoryName = categoryMatch[1].trim()
         const matchedCategory = categories.find(c =>
             c.name.toLowerCase() === categoryName.toLowerCase()
         )

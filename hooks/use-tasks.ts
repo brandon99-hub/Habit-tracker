@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useCache } from "@/lib/cache-context"
+import { useInvalidateTaskCaches } from "@/hooks/use-invalidate-caches"
 import {
     getPages,
     getProperties,
@@ -21,6 +22,7 @@ export type TaskWithProperties = Page & {
 
 export function useTasks(categoryId: string | null) {
     const cache = useCache()
+    const { invalidateAll } = useInvalidateTaskCaches()
     const [tasks, setTasks] = useState<Page[]>([])
     const [properties, setProperties] = useState<Property[]>([])
     const [loading, setLoading] = useState(true)
@@ -94,6 +96,8 @@ export function useTasks(categoryId: string | null) {
 
         if (data) {
             setTasks([data, ...tasks])
+            // Comprehensive cache invalidation
+            invalidateAll(categoryId)
         }
 
         return { data, error: null }
@@ -123,6 +127,8 @@ export function useTasks(categoryId: string | null) {
         }
 
         setTasks(tasks.filter((t) => t.id !== id))
+        // Comprehensive cache invalidation
+        if (categoryId) invalidateAll(categoryId)
         return { error: null }
     }
 
@@ -134,6 +140,8 @@ export function useTasks(categoryId: string | null) {
             return { error }
         }
 
+        // Comprehensive cache invalidation
+        if (categoryId) invalidateAll(categoryId)
         return { error: null }
     }
 

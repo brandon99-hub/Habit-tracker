@@ -5,16 +5,20 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useCategories } from "@/hooks/use-categories"
 import { useCache } from "@/lib/cache-context"
+import { useToast } from "@/hooks/use-toast"
+import { useUserPreferences } from "@/hooks/use-user-preferences"
+import { formatDate, formatTime } from "@/lib/utils/date-format"
+import { useInvalidateTaskCaches } from "@/hooks/use-invalidate-caches"
 import { Button } from "@/components/ui/button"
 import { BottomNav } from "@/components/ui/bottom-nav"
 import { FloatingActionButton } from "@/components/ui/floating-action-button"
-import { Plus, Grid, Calendar, User, CheckCircle2, ArrowLeft, Filter } from "lucide-react"
+import { Plus, Grid, Calendar, User, CheckCircle2, ArrowLeft, Filter, Search, X } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { TaskIcon } from "@/components/tasks/task-icon"
 import { TaskFilters, type FilterOptions } from "@/components/tasks/task-filters"
 import { TaskSort, type SortOption } from "@/components/tasks/task-sort"
-import { useToast } from "@/hooks/use-toast"
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog"
 import { getPages, getProperties, getPropertyValues, type Page, type Property, deletePage } from "@/lib/tasks/supabase-categories"
 import { setPropertyValue } from "@/lib/tasks/supabase-categories"
@@ -33,6 +37,8 @@ export default function AllTasksPage() {
     const { categories } = useCategories()
     const cache = useCache()
     const { toast } = useToast()
+    const { preferences } = useUserPreferences()
+    const { invalidateAll } = useInvalidateTaskCaches()
     const [selectedCategory, setSelectedCategory] = useState<string>("all")
     const [allTasks, setAllTasks] = useState<Page[]>([])
     const [properties, setProperties] = useState<any[]>([])
@@ -52,6 +58,8 @@ export default function AllTasksPage() {
         direction: "asc",
     })
     const [showAddDialog, setShowAddDialog] = useState(false)
+    const [isSearchOpen, setIsSearchOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState("")
 
     useEffect(() => {
         async function fetchAllTasks() {
@@ -161,14 +169,8 @@ export default function AllTasksPage() {
             // Remove from local state
             setAllTasks(prev => prev.filter(t => t.id !== taskId))
 
-            // Invalidate cache for real-time updates
-            cache.invalidate('all-tasks-data')
-            cache.invalidate('home-stats')
-
-            // Also invalidate the specific category cache
-            if (task) {
-                cache.invalidate(`category-${task.category_id}-data`)
-            }
+            // Comprehensive cache invalidation
+            invalidateAll(task?.category_id)
 
             // Show success toast
             toast({
@@ -241,8 +243,9 @@ export default function AllTasksPage() {
             // Refresh tasks
             setAllTasks(prev => [newTask, ...prev])
             setShowAddDialog(false)
-            // Invalidate cache
-            cache.invalidate('all-tasks-data')
+
+            // Comprehensive cache invalidation
+            invalidateAll(categoryId)
         } catch (error) {
             console.error("Error in handleAddTask:", error)
         }
@@ -253,8 +256,15 @@ export default function AllTasksPage() {
         ? allTasks
         : allTasks.filter(task => task.category_id === selectedCategory)
 
+    // Apply search filter
+    const searchFilteredTasks = searchQuery.trim()
+        ? categoryFilteredTasks.filter(task =>
+            task.title.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        : categoryFilteredTasks
+
     // Then apply other filters and sorting
-    const filteredTasks = filterTasks(categoryFilteredTasks, filters, propertyValues, properties, recurringTasks)
+    const filteredTasks = filterTasks(searchFilteredTasks, filters, propertyValues, properties, recurringTasks)
     const sortedTasks = sortTasks(filteredTasks, sort, propertyValues, properties)
 
     if (loading) {
@@ -273,29 +283,85 @@ export default function AllTasksPage() {
             <div className="mx-auto max-w-7xl px-4 py-6">
                 {/* Header */}
                 <header className="mb-6">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push("/tasks")}
-                        className="mb-4 gap-2 md:hidden"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back
-                    </Button>
-
-                    <h1 className="text-3xl font-bold gradient-text mb-2">All Tasks</h1>
-                    <p className="text-sm text-muted-foreground">
-                        {sortedTasks.length} of {allTasks.length} tasks
-                    </p>
+                    <div className="flex items-center justify-between mb-4">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push("/tasks")}
+                            className="gap-2 text-muted-foreground hover:text-foreground p-0 h-auto"
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                            <span className="text-base">Back</span>
+                        </Button>
+                        <div className="flex items-center gap-1 relative">
+                            {/* Mobile Search Icon */}
+                            {!isSearchOpen ? (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsSearchOpen(true)}
+                                    className="h-9 w-9 p-0"
+                                >
+                                    <Search className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                            ) : (
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center animate-in fade-in slide-in-from-right-5 duration-200">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="Search tasks..."
+                                            className="h-9 w-[calc(100vw-180px)] md:w-64 pl-9 pr-9 bg-background/95 backdrop-blur border shadow-lg rounded-full"
+                                            autoFocus
+                                            onBlur={() => !searchQuery && setIsSearchOpen(false)}
+                                        />
+                                        {searchQuery && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setSearchQuery("")}
+                                                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 rounded-full hover:bg-background/50"
+                                            >
+                                                <X className="h-4 w-4 text-muted-foreground" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                            setIsSearchOpen(false)
+                                            setSearchQuery("")
+                                        }}
+                                        className="ml-2 h-9 w-9 p-0 rounded-full hover:bg-muted"
+                                    >
+                                        <X className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </header>
 
+                {/* Title Section */}
+                <div className="mb-6">
+                    <div className="flex items-center justify-between gap-4 mb-1">
+                        <h1 className="text-3xl font-bold gradient-text">All Tasks</h1>
+                        <span className="text-sm font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-full whitespace-nowrap">
+                            {sortedTasks.length} of {allTasks.length}
+                        </span>
+                    </div>
+                </div>
+
+
                 {/* Filters and Sort */}
-                <div className="mb-6 space-y-4">
+                <div className="mb-6 space-y-3">
                     {/* Category Filter */}
-                    <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
                         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                            <SelectTrigger className="w-[200px]">
+                            <SelectTrigger className="w-full sm:w-[220px]">
                                 <SelectValue placeholder="Filter by category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -310,7 +376,7 @@ export default function AllTasksPage() {
                     </div>
 
                     {/* Task Filters and Sort */}
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-3 flex-wrap">
                         <TaskFilters filters={filters} onFilterChange={setFilters} />
                         <TaskSort sort={sort} onSortChange={setSort} />
                     </div>

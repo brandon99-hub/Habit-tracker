@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Zap, Calendar, Flag, Folder, Sparkles, Clock } from "lucide-react"
@@ -25,11 +24,20 @@ type Props = {
     categories: Category[]
 }
 
+const PRIORITIES = ['urgent', 'high', 'medium', 'low']
+
 export function QuickAddDialog({ open, onOpenChange, onAdd, categories }: Props) {
     const [input, setInput] = useState("")
     const [parsed, setParsed] = useState<any>(null)
     const [selectedCategory, setSelectedCategory] = useState("")
     const [recentInputs, setRecentInputs] = useState<string[]>([])
+
+    // Autocomplete state
+    const [showAutocomplete, setShowAutocomplete] = useState(false)
+    const [autocompleteType, setAutocompleteType] = useState<'category' | 'priority' | null>(null)
+    const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<string[]>([])
+    const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
+    const inputRef = useRef<HTMLInputElement>(null)
 
     // Load recent inputs from localStorage
     useEffect(() => {
@@ -43,6 +51,7 @@ export function QuickAddDialog({ open, onOpenChange, onAdd, categories }: Props)
         }
     }, [])
 
+    // Parse input and check for autocomplete
     useEffect(() => {
         if (input.trim()) {
             const result = parseTaskInput(input, categories)
@@ -50,8 +59,48 @@ export function QuickAddDialog({ open, onOpenChange, onAdd, categories }: Props)
             if (result.category) {
                 setSelectedCategory(result.category)
             }
+
+            // Check for autocomplete triggers
+            const cursorPos = inputRef.current?.selectionStart || input.length
+            const textBeforeCursor = input.substring(0, cursorPos)
+
+            // Category autocomplete (@)
+            const categoryMatch = textBeforeCursor.match(/@([\w\s-]*)$/)
+            if (categoryMatch) {
+                const searchTerm = categoryMatch[1].toLowerCase()
+                const matches = categories
+                    .filter(c => c.name.toLowerCase().includes(searchTerm))
+                    .map(c => c.name)
+                    .slice(0, 5)
+
+                if (matches.length > 0) {
+                    setAutocompleteSuggestions(matches)
+                    setAutocompleteType('category')
+                    setShowAutocomplete(true)
+                    setSelectedSuggestionIndex(0)
+                    return
+                }
+            }
+
+            // Priority autocomplete (!)
+            const priorityMatch = textBeforeCursor.match(/!(\w*)$/)
+            if (priorityMatch) {
+                const searchTerm = priorityMatch[1].toLowerCase()
+                const matches = PRIORITIES.filter(p => p.startsWith(searchTerm))
+
+                if (matches.length > 0) {
+                    setAutocompleteSuggestions(matches)
+                    setAutocompleteType('priority')
+                    setShowAutocomplete(true)
+                    setSelectedSuggestionIndex(0)
+                    return
+                }
+            }
+
+            setShowAutocomplete(false)
         } else {
             setParsed(null)
+            setShowAutocomplete(false)
         }
     }, [input, categories])
 
@@ -77,8 +126,44 @@ export function QuickAddDialog({ open, onOpenChange, onAdd, categories }: Props)
         onOpenChange(false)
     }
 
+    const applySuggestion = (suggestion: string) => {
+        const cursorPos = inputRef.current?.selectionStart || input.length
+        const textBeforeCursor = input.substring(0, cursorPos)
+        const textAfterCursor = input.substring(cursorPos)
+
+        let newInput = ""
+        if (autocompleteType === 'category') {
+            newInput = textBeforeCursor.replace(/@[\w\s-]*$/, `@${suggestion} `) + textAfterCursor
+        } else if (autocompleteType === 'priority') {
+            newInput = textBeforeCursor.replace(/!\w*$/, `!${suggestion} `) + textAfterCursor
+        }
+
+        setInput(newInput)
+        setShowAutocomplete(false)
+
+        // Focus back on input
+        setTimeout(() => inputRef.current?.focus(), 0)
+    }
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && parsed?.title && parsed?.category) {
+        if (showAutocomplete) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setSelectedSuggestionIndex((prev) =>
+                    prev < autocompleteSuggestions.length - 1 ? prev + 1 : prev
+                )
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setSelectedSuggestionIndex((prev) => prev > 0 ? prev - 1 : prev)
+            } else if (e.key === 'Tab' || e.key === 'Enter') {
+                if (autocompleteSuggestions.length > 0) {
+                    e.preventDefault()
+                    applySuggestion(autocompleteSuggestions[selectedSuggestionIndex])
+                }
+            } else if (e.key === 'Escape') {
+                setShowAutocomplete(false)
+            }
+        } else if (e.key === 'Enter' && parsed?.title && parsed?.category) {
             e.preventDefault()
             handleSubmit()
         } else if (e.key === 'Escape') {
@@ -97,12 +182,13 @@ export function QuickAddDialog({ open, onOpenChange, onAdd, categories }: Props)
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    {/* Smart Input */}
+                    {/* Smart Input with Autocomplete */}
                     <div className="space-y-2">
                         <Label htmlFor="task-input" className="text-base">Type your task...</Label>
                         <div className="relative">
-                            <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                             <Input
+                                ref={inputRef}
                                 id="task-input"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
@@ -111,6 +197,33 @@ export function QuickAddDialog({ open, onOpenChange, onAdd, categories }: Props)
                                 className="text-base pl-10 h-12"
                                 autoFocus
                             />
+
+                            {/* Autocomplete Dropdown */}
+                            {showAutocomplete && (
+                                <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto">
+                                    <div className="p-2 space-y-1">
+                                        {autocompleteSuggestions.map((suggestion, index) => (
+                                            <button
+                                                key={suggestion}
+                                                onClick={() => applySuggestion(suggestion)}
+                                                className={`w-full text-left px-3 py-2 rounded-sm text-sm transition-colors ${index === selectedSuggestionIndex
+                                                        ? 'bg-accent text-accent-foreground'
+                                                        : 'hover:bg-accent/50'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    {autocompleteType === 'category' ? (
+                                                        <Folder className="h-3 w-3 text-muted-foreground" />
+                                                    ) : (
+                                                        <Flag className="h-3 w-3 text-muted-foreground" />
+                                                    )}
+                                                    <span className="capitalize">{suggestion}</span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <p className="text-xs text-muted-foreground">
                             💡 <strong>Tip:</strong> Use <code className="px-1 py-0.5 bg-muted rounded">@category</code>, <code className="px-1 py-0.5 bg-muted rounded">!priority</code>, "monday", "tomorrow", "at 2pm"
@@ -201,8 +314,8 @@ export function QuickAddDialog({ open, onOpenChange, onAdd, categories }: Props)
                         </div>
                     )}
 
-                    {/* Actions */}
-                    <div className="flex gap-3 pt-2">
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-2">
                         <Button
                             variant="outline"
                             onClick={() => onOpenChange(false)}
@@ -213,9 +326,9 @@ export function QuickAddDialog({ open, onOpenChange, onAdd, categories }: Props)
                         <Button
                             onClick={handleSubmit}
                             disabled={!parsed?.title || !parsed?.category}
-                            className="flex-1 gradient-primary text-white border-0 hover:opacity-90 shadow-md"
+                            className="flex-1 gradient-primary text-white border-0 hover:opacity-90 gap-2"
                         >
-                            <Zap className="h-4 w-4 mr-2" />
+                            <Zap className="h-4 w-4" />
                             Add Task
                         </Button>
                     </div>
