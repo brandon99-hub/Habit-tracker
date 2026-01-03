@@ -246,7 +246,14 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
 
             <Card
                 {...swipeHandlers}
-                className="p-3 sm:p-4 transition-all hover:bg-accent/5"
+                className={cn(
+                    "p-3 sm:p-4 transition-all hover:bg-accent/5",
+                    // Overdue border - red left border when task is overdue and not completed
+                    dueDateProperty && propertyValues[dueDateProperty.id] &&
+                    statusProperty && propertyValues[statusProperty.id] !== 'Completed' &&
+                    new Date(propertyValues[dueDateProperty.id]) < new Date() &&
+                    "border-l-4 border-red-500"
+                )}
                 style={{
                     transform: `translateX(${dragOffset}px)`,
                     transition: isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -464,17 +471,6 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
                                             className="h-8 px-2 text-sm border rounded bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
                                         />
                                     </div>
-
-                                    {/* Overdue Indicator - Red Dot (outside container, hidden when completed) */}
-                                    {propertyValues[dueDateProperty.id] &&
-                                        statusProperty &&
-                                        propertyValues[statusProperty.id] !== 'Completed' &&
-                                        new Date(propertyValues[dueDateProperty.id]) < new Date() && (
-                                            <div
-                                                className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0"
-                                                title="Overdue"
-                                            />
-                                        )}
                                 </div>
                             )}
                         </div>

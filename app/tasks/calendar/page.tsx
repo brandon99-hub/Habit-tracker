@@ -182,8 +182,25 @@ export default function CalendarPage() {
                 return daysOfWeek.includes(date.getDay())
 
             case "monthly":
-                // Show on the same day of every month
-                return date.getDate() === originalDate.getDate()
+                // Use the day_of_month from recurring settings, not the original due date
+                const dayOfMonth = recurring.day_of_month
+                const monthPosition = recurring.month_position
+
+                if (monthPosition === 'start') {
+                    return date.getDate() === 1
+                } else if (monthPosition === 'end') {
+                    // Last day of month
+                    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+                    return date.getDate() === lastDay
+                } else if (monthPosition === 'specific' && dayOfMonth) {
+                    return date.getDate() === dayOfMonth
+                } else if (dayOfMonth) {
+                    // Fallback: use day_of_month if set
+                    return date.getDate() === dayOfMonth
+                } else {
+                    // Fallback to original behavior if no day_of_month
+                    return date.getDate() === originalDate.getDate()
+                }
 
             default:
                 return false

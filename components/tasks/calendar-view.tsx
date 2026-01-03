@@ -182,28 +182,26 @@ export function CalendarView({ tasks, properties, propertyValues, recurringTasks
                     <h3 className="text-lg font-semibold">
                         Tasks for {format(selectedDate, "MMMM d, yyyy")}
                     </h3>
-
                 </div>
-
-                {sortedTasks.length === 0 ? (
-                    <Card className="p-8 text-center">
-                        <p className="text-muted-foreground">
-                            No tasks for this date
-                        </p>
-                    </Card>
-                ) : (
-                    <div className="space-y-2">
-                        {sortedTasks.map((task) => (
+                {/* Task List for Selected Date */}
+                <div className="space-y-3">
+                    {sortedTasks.length === 0 ? (
+                        <Card className="p-8 text-center">
+                            <p className="text-muted-foreground">No tasks on this date</p>
+                        </Card>
+                    ) : (
+                        sortedTasks.map((task) => (
                             <CalendarTaskCard
                                 key={task.id}
                                 task={task}
                                 properties={properties}
                                 propertyValues={propertyValues[task.id] || {}}
+                                isRecurring={!!recurringTasks[task.id]}
                                 onClick={() => onTaskClick(task.id)}
                             />
-                        ))}
-                    </div>
-                )}
+                        ))
+                    )}
+                </div>
             </div>
         </div>
     )
