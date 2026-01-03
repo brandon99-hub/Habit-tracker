@@ -25,29 +25,35 @@ type Notification = {
 export function NotificationCenter() {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [permission, setPermission] = useState<NotificationPermission>("default")
+    const [mounted, setMounted] = useState(false)
 
+    // Ensure we're on the client
     useEffect(() => {
-        if ("Notification" in window) {
-            setPermission(Notification.permission)
-        }
+        setMounted(true)
     }, [])
 
+    useEffect(() => {
+        if (mounted && typeof window !== 'undefined' && "Notification" in window) {
+            setPermission(Notification.permission)
+        }
+    }, [mounted])
+
     const requestPermission = async () => {
-        if ("Notification" in window) {
-            const perm = await Notification.requestPermission()
-            setPermission(perm)
+        if (typeof window === 'undefined' || !("Notification" in window)) return
 
-            if (perm === "granted") {
-                // Subscribe to push notifications
-                const subscription = await subscribeToPush()
-                if (subscription) {
-                    // TODO: Save subscription to Supabase
-                    console.log('Push subscription:', subscription)
-                }
+        const perm = await Notification.requestPermission()
+        setPermission(perm)
 
-                // Test notification removed - was confusing users
-                // Actual reminders will be sent by the cron job at scheduled times
+        if (perm === "granted") {
+            // Subscribe to push notifications
+            const subscription = await subscribeToPush()
+            if (subscription) {
+                // TODO: Save subscription to Supabase
+                console.log('Push subscription:', subscription)
             }
+
+            // Test notification removed - was confusing users
+            // Actual reminders will be sent by the cron job at scheduled times
         }
     }
 
