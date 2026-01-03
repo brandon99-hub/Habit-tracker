@@ -205,6 +205,11 @@ export default function AllTasksPage() {
 
             if (error || !newTask) {
                 console.error("Error creating task:", error)
+                toast({
+                    title: "Error",
+                    description: "Failed to create task. Please try again.",
+                    variant: "destructive"
+                })
                 return
             }
 
@@ -212,7 +217,7 @@ export default function AllTasksPage() {
             const { data: categoryProperties } = await supabase
                 .from("task_properties")
                 .select("*")
-                .eq("database_id", categoryId)
+                .eq("category_id", categoryId)  // ✅ Fixed: was database_id
 
             if (categoryProperties) {
                 // Set status
@@ -231,7 +236,7 @@ export default function AllTasksPage() {
                     }
                 }
 
-                // Set due date
+                // Set due date (with time if provided)
                 if (dueDate) {
                     const dueDateProp = categoryProperties.find(p => p.name === "Due Date")
                     if (dueDateProp) {
@@ -240,14 +245,40 @@ export default function AllTasksPage() {
                 }
             }
 
+            // Set reminder if provided
+            if (reminderOffset !== undefined && dueDate) {
+                // Calculate reminder time
+                const reminderTime = new Date(dueDate.getTime() - (reminderOffset * 60 * 1000))
+
+                // Store reminder in database
+                await supabase
+                    .from("task_reminders")
+                    .insert({
+                        task_id: newTask.id,
+                        reminder_time: reminderTime.toISOString(),
+                        offset_minutes: reminderOffset
+                    })
+            }
+
             // Refresh tasks
             setAllTasks(prev => [newTask, ...prev])
             setShowAddDialog(false)
 
             // Comprehensive cache invalidation
             invalidateAll(categoryId)
+
+            // Show success toast
+            toast({
+                title: "Task created",
+                description: `"${title}" has been added successfully`,
+            })
         } catch (error) {
             console.error("Error in handleAddTask:", error)
+            toast({
+                title: "Error",
+                description: "An unexpected error occurred. Please try again.",
+                variant: "destructive"
+            })
         }
     }
 
