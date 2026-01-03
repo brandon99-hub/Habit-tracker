@@ -67,10 +67,17 @@ export function RecurringDialog({ open, onOpenChange, taskId }: Props) {
 
     let error
     if (recurring) {
-      const result = await updateRecurringTask(recurring.id, pattern, config)
+      const result = await updateRecurringTask(recurring.id, {
+        pattern,
+        days_of_week: pattern === "custom" ? selectedDays : undefined,
+      })
       error = result.error
     } else {
-      const result = await createRecurringTask(taskId, pattern, config)
+      const result = await createRecurringTask({
+        page_id: taskId,
+        pattern,
+        days_of_week: pattern === "custom" ? selectedDays : undefined,
+      })
       error = result.error
     }
 
@@ -160,11 +167,10 @@ export function RecurringDialog({ open, onOpenChange, taskId }: Props) {
                     key={day.value}
                     type="button"
                     onClick={() => toggleDay(day.value)}
-                    className={`flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-colors ${
-                      selectedDays.includes(day.value)
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background border-border hover:bg-muted"
-                    }`}
+                    className={`flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-colors ${selectedDays.includes(day.value)
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background border-border hover:bg-muted"
+                      }`}
                   >
                     {day.label}
                   </button>

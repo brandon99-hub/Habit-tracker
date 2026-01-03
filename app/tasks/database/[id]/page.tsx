@@ -16,7 +16,8 @@ import { getPropertyValues } from "@/lib/tasks/supabase-tasks"
 import { getRecurringTask } from "@/lib/tasks/recurring-service"
 import { filterTasks, sortTasks } from "@/lib/tasks/filter-sort-utils"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { Page } from "@/lib/tasks/supabase-tasks"
+import type { Page } from "@/lib/tasks/supabase-categories"
+
 
 export default function DatabasePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -186,12 +187,18 @@ export default function DatabasePage({ params }: { params: Promise<{ id: string 
             tasks={sortedTasks}
             properties={properties}
             propertyValues={propertyValues}
+            recurringTasks={recurringTasks}
             onTaskClick={handleTaskClick}
           />
         )}
 
         {/* Add Task Dialog */}
-        <AddTaskDialog open={showAddDialog} onOpenChange={setShowAddDialog} onAdd={handleAddTask} />
+        <AddTaskDialog
+          open={showAddDialog}
+          onOpenChange={setShowAddDialog}
+          onAdd={handleAddTask}
+          properties={properties}
+        />
 
         {/* Task Detail Modal */}
         <TaskDetailModal
