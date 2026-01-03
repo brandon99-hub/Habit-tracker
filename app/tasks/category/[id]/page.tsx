@@ -488,10 +488,7 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
                     existingRecurring={recurringTasks[recurringTaskId]}
                     onSuccess={async () => {
                         // Refetch recurring tasks instead of full page reload
-                        console.log("Recurring task saved, refetching data...")
-                        if (tasks.length > 0) {
-                            await fetchAllData()
-                        }
+                        await fetchAllData()
                     }}
                 />
 

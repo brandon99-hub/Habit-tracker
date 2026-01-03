@@ -14,6 +14,20 @@ import {
     Bookmark,
     Clock,
     Mail,
+    // Additional icons for Quick Add
+    Circle,
+    CheckCircle,
+    Sparkles,
+    Award,
+    Calendar,
+    Bell,
+    MessageSquare,
+    Phone,
+    Briefcase,
+    Clipboard,
+    Folder,
+    Package,
+    ShoppingCart,
     type LucideIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -21,6 +35,7 @@ import { cn } from "@/lib/utils"
 const iconMap: Record<string, LucideIcon> = {
     FileText,
     CheckCircle2,
+    CheckCircle,
     Target,
     Lightbulb,
     Flame,
@@ -34,6 +49,19 @@ const iconMap: Record<string, LucideIcon> = {
     Bookmark,
     Clock,
     Mail,
+    // Quick Add icons
+    Circle,
+    Sparkles,
+    Award,
+    Calendar,
+    Bell,
+    MessageSquare,
+    Phone,
+    Briefcase,
+    Clipboard,
+    Folder,
+    Package,
+    ShoppingCart,
 }
 
 interface TaskIconProps {

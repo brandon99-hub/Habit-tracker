@@ -63,7 +63,7 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
             .eq("page_id", task.id)
             .single()
             .then(({ data, error }) => {
-                console.log("Recurring data for task", task.id, ":", data, error)
+
                 if (data) setRecurringInfo(data)
             })
 
@@ -158,7 +158,7 @@ export function TaskRow({ task, properties, onEdit, onDelete, onUpdateProperty }
     const getRecurringText = () => {
         if (!recurringInfo) return null
 
-        console.log("Formatting recurring info:", recurringInfo)
+
 
         const pattern = recurringInfo.pattern
         const interval = recurringInfo.interval || 1

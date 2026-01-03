@@ -38,7 +38,7 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
     useEffect(() => {
         if (open) {
             if (existingRecurring) {
-                console.log("Loading recurring settings:", existingRecurring)
+
                 setPattern(existingRecurring.pattern || "daily")
                 setInterval(existingRecurring.config?.interval || existingRecurring.interval || 1)
                 setDaysOfWeek(existingRecurring.config?.days || existingRecurring.days_of_week || [])
@@ -102,7 +102,7 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
                 occurrence_count: endType === "count" ? occurrenceCount : null,
             }
 
-            console.log("Saving recurring task with data:", recurringData)
+
 
             // First, check if a recurring task already exists for this page
             const { data: existingData } = await supabase
@@ -114,15 +114,15 @@ export function RecurringTaskDialog({ open, onOpenChange, taskId, existingRecurr
             let result
             if (existingData) {
                 // Update existing recurring task
-                console.log("Updating existing recurring task:", existingData.id)
+
                 result = await updateRecurringTask(existingData.id, recurringData)
             } else {
                 // Create new recurring task
-                console.log("Creating new recurring task")
+
                 result = await createRecurringTask(recurringData)
             }
 
-            console.log("Result:", result)
+
 
             if (result.error) {
                 console.error("Error saving recurring task:", result.error)

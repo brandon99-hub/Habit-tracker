@@ -68,7 +68,7 @@ export async function createRecurringTask(data: {
     skip_weekends?: boolean
     occurrence_count?: number
 }) {
-    console.log("[RECURRING] Creating recurring task with data:", JSON.stringify(data, null, 2))
+
 
     const config = {
         days: data.days_of_week || undefined,
@@ -87,7 +87,7 @@ export async function createRecurringTask(data: {
         nextOccurrence = moveToNextWeekday(nextOccurrence)
     }
 
-    console.log("[RECURRING] Calculated next occurrence:", nextOccurrence.toISOString())
+
 
     const insertData = {
         page_id: data.page_id,
@@ -103,7 +103,7 @@ export async function createRecurringTask(data: {
         occurrence_count: data.occurrence_count || null,
         occurrences_completed: 0,
     }
-    console.log("[RECURRING] Inserting into database:", JSON.stringify(insertData, null, 2))
+
 
     const { data: result, error } = await supabase
         .from("recurring_tasks")
@@ -119,7 +119,7 @@ export async function createRecurringTask(data: {
         console.error("  Hint:", error.hint)
         console.error("  Full error:", JSON.stringify(error, null, 2))
     } else {
-        console.log("[RECURRING] Successfully created recurring task:", result)
+
     }
 
     return { data: result, error }
@@ -153,7 +153,7 @@ export async function updateRecurringTask(
         occurrence_count?: number
     }
 ) {
-    console.log("[RECURRING] Updating recurring task:", id, "with data:", JSON.stringify(data, null, 2))
+
 
     const config = {
         days: data.days_of_week || undefined,
@@ -172,7 +172,7 @@ export async function updateRecurringTask(
         nextOccurrence = moveToNextWeekday(nextOccurrence)
     }
 
-    console.log("[RECURRING] Calculated next occurrence:", nextOccurrence.toISOString())
+
 
     const updateData: any = {
         pattern: data.pattern,
@@ -198,7 +198,7 @@ export async function updateRecurringTask(
     if (error) {
         console.error("[RECURRING] Error updating recurring task:", error)
     } else {
-        console.log("[RECURRING] Successfully updated recurring task:", result)
+
     }
 
     return { data: result, error }
@@ -346,3 +346,44 @@ export async function checkRecurringTasks(userId: string) {
     }
 }
 
+/**
+ * Advance a recurring task to its next occurrence
+ * Used when completing a recurring task
+ */
+export function advanceToNextOccurrence(
+    currentOccurrence: Date,
+    pattern: "daily" | "weekly" | "monthly" | "yearly" | "weekdays" | "custom" | "after_completion",
+    interval: number = 1
+): Date {
+    const next = new Date(currentOccurrence)
+
+    switch (pattern) {
+        case "daily":
+            next.setDate(next.getDate() + interval)
+            break
+        case "weekdays":
+            // Advance to next weekday
+            next.setDate(next.getDate() + 1)
+            while (next.getDay() === 0 || next.getDay() === 6) {
+                next.setDate(next.getDate() + 1)
+            }
+            break
+        case "weekly":
+            next.setDate(next.getDate() + (7 * interval))
+            break
+        case "monthly":
+            next.setMonth(next.getMonth() + interval)
+            break
+        case "yearly":
+            next.setFullYear(next.getFullYear() + interval)
+            break
+        case "after_completion":
+            // For after_completion, advance from today
+            const today = new Date()
+            next.setTime(today.getTime())
+            next.setDate(next.getDate() + interval)
+            break
+    }
+
+    return next
+}

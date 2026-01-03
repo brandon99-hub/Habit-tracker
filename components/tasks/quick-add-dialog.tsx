@@ -199,35 +199,74 @@ export function QuickAddDialog({ open, onOpenChange, onAdd, categories }: Props)
                             />
 
                             {/* Autocomplete Dropdown */}
-                            {showAutocomplete && (
-                                <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto">
-                                    <div className="p-2 space-y-1">
-                                        {autocompleteSuggestions.map((suggestion, index) => (
-                                            <button
-                                                key={suggestion}
-                                                onClick={() => applySuggestion(suggestion)}
-                                                className={`w-full text-left px-3 py-2 rounded-sm text-sm transition-colors ${index === selectedSuggestionIndex
-                                                        ? 'bg-accent text-accent-foreground'
-                                                        : 'hover:bg-accent/50'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    {autocompleteType === 'category' ? (
-                                                        <Folder className="h-3 w-3 text-muted-foreground" />
-                                                    ) : (
-                                                        <Flag className="h-3 w-3 text-muted-foreground" />
-                                                    )}
-                                                    <span className="capitalize">{suggestion}</span>
-                                                </div>
-                                            </button>
-                                        ))}
+                            {showAutocomplete && autocompleteSuggestions.length > 0 && (
+                                <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                    <div className="p-2 text-xs text-muted-foreground border-b">
+                                        {autocompleteType === 'category' ? (
+                                            <span className="flex items-center gap-1">
+                                                <Folder className="h-3 w-3" />
+                                                Tap to select category
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1">
+                                                <Flag className="h-3 w-3" />
+                                                Tap to select priority
+                                            </span>
+                                        )}
                                     </div>
+                                    {autocompleteSuggestions.map((suggestion, index) => (
+                                        <button
+                                            key={suggestion}
+                                            type="button"
+                                            onClick={() => applySuggestion(suggestion)}
+                                            className={`
+                                                w-full text-left px-4 py-3 min-h-[48px] flex items-center gap-2
+                                                transition-colors
+                                                ${index === selectedSuggestionIndex
+                                                    ? 'bg-accent text-accent-foreground'
+                                                    : 'hover:bg-accent/50'
+                                                }
+                                            `}
+                                        >
+                                            {autocompleteType === 'category' ? (
+                                                <>
+                                                    <span className="text-muted-foreground">@</span>
+                                                    <span className="font-medium">{suggestion}</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="text-muted-foreground">!</span>
+                                                    <span className="font-medium capitalize">{suggestion}</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    ))}
                                 </div>
                             )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            💡 <strong>Tip:</strong> Use <code className="px-1 py-0.5 bg-muted rounded">@category</code>, <code className="px-1 py-0.5 bg-muted rounded">!priority</code>, "monday", "tomorrow", "at 2pm"
-                        </p>
+
+                        {/* Helper Text - Mobile Friendly */}
+                        <div className="text-xs text-muted-foreground space-y-1 bg-muted/30 p-3 rounded-lg">
+                            <p className="font-medium mb-2">Quick shortcuts:</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Folder className="h-3 w-3 flex-shrink-0" />
+                                    <span><code className="bg-background px-1 rounded">@category</code> - Set category</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Flag className="h-3 w-3 flex-shrink-0" />
+                                    <span><code className="bg-background px-1 rounded">!priority</code> - Set priority</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="h-3 w-3 flex-shrink-0" />
+                                    <span><code className="bg-background px-1 rounded">tomorrow</code> - Set date</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Clock className="h-3 w-3 flex-shrink-0" />
+                                    <span><code className="bg-background px-1 rounded">at 2pm</code> - Set time</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Preview */}

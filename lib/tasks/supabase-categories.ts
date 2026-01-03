@@ -189,6 +189,54 @@ export async function deletePage(id: string) {
 
 // Property Value operations
 export async function setPropertyValue(pageId: string, propertyId: string, value: any) {
+    // First, check if this is a Status property being set to "Completed"
+    const { data: property } = await supabase
+        .from("task_properties")
+        .select("name")
+        .eq("id", propertyId)
+        .single()
+
+    // If setting status to "Completed", also update completed_at timestamp
+    if (property?.name === "Status" && value === "Completed") {
+        await supabase
+            .from("task_pages")
+            .update({ completed_at: new Date().toISOString() })
+            .eq("id", pageId)
+
+        // Check if this is a recurring task and advance next_occurrence
+        const { data: recurringTask } = await supabase
+            .from("recurring_tasks")
+            .select("*")
+            .eq("page_id", pageId)
+            .single()
+
+        if (recurringTask) {
+            // Calculate next occurrence based on pattern
+            const { advanceToNextOccurrence } = await import("./recurring-service")
+            const nextOccurrence = advanceToNextOccurrence(
+                new Date(recurringTask.next_occurrence),
+                recurringTask.pattern,
+                recurringTask.interval || 1
+            )
+
+            // Update recurring task with new next_occurrence and last_completed_at
+            await supabase
+                .from("recurring_tasks")
+                .update({
+                    next_occurrence: nextOccurrence.toISOString(),
+                    last_completed_at: new Date().toISOString()
+                })
+                .eq("id", recurringTask.id)
+        }
+    }
+    // If changing from "Completed" to something else, clear completed_at
+    else if (property?.name === "Status" && value !== "Completed") {
+        await supabase
+            .from("task_pages")
+            .update({ completed_at: null })
+            .eq("id", pageId)
+    }
+
     const { data, error } = await supabase
         .from("task_property_values")
         .upsert({

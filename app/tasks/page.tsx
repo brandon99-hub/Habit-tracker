@@ -60,35 +60,49 @@ export default function TasksPage() {
 
             if (!allTasks) return
 
-            // Get all property values
+            // Initialize variables
             let completedToday = 0
             let overdue = 0
             const today = new Date()
             today.setHours(0, 0, 0, 0)
+
+
 
             for (const task of allTasks) {
                 const { data: propValues } = await getPropertyValues(task.id)
                 if (!propValues) continue
 
                 // Find status property for THIS task's category
+                // Note: getPropertyValues returns task_properties, not property
                 const statusValue = propValues.find((pv: any) => {
-                    return pv.property?.name === "Status" &&
-                        pv.property?.category_id === task.category_id
+                    return pv.task_properties?.name === "Status" &&
+                        pv.task_properties?.category_id === task.category_id
                 })?.value
 
                 // Find due date property for THIS task's category
                 const dueDateValue = propValues.find((pv: any) => {
-                    return pv.property?.name === "Due Date" &&
-                        pv.property?.category_id === task.category_id
+                    return pv.task_properties?.name === "Due Date" &&
+                        pv.task_properties?.category_id === task.category_id
                 })?.value
 
-                // Count completed TODAY (not all time)
-                if (statusValue === "Completed") {
-                    // Check if task was completed today by checking updated_at
-                    const updatedAt = new Date(task.updated_at)
-                    updatedAt.setHours(0, 0, 0, 0)
 
-                    if (updatedAt.getTime() === today.getTime()) {
+
+                // Count completed TODAY using completed_at field
+                // For backward compatibility, count all completed tasks if completed_at is null
+                if (statusValue === "Completed") {
+                    if (task.completed_at) {
+                        const completedAt = new Date(task.completed_at)
+                        completedAt.setHours(0, 0, 0, 0)
+
+                        if (completedAt.getTime() === today.getTime()) {
+
+                            completedToday++
+                        } else {
+
+                        }
+                    } else {
+                        // Fallback: if no completed_at, assume completed today for now
+
                         completedToday++
                     }
                 }
@@ -96,12 +110,42 @@ export default function TasksPage() {
                 // Count overdue (not completed and due date in past)
                 if (statusValue !== "Completed" && dueDateValue) {
                     const dueDate = new Date(dueDateValue)
-                    dueDate.setHours(0, 0, 0, 0)
-                    if (dueDate < today) {
+                    const now = new Date()
+
+                    // For regular tasks, check if due date has passed
+                    if (dueDate < now) {
                         overdue++
                     }
                 }
             }
+
+            // Check recurring tasks for overdue status
+            for (const task of allTasks) {
+                const { data: recurringData } = await supabase
+                    .from("recurring_tasks")
+                    .select("*")
+                    .eq("page_id", task.id)
+                    .single()
+
+                if (recurringData && recurringData.next_occurrence) {
+                    const nextOccurrence = new Date(recurringData.next_occurrence)
+                    const now = new Date()
+
+                    // If we're past the next occurrence time, check if it's been completed
+                    if (now > nextOccurrence) {
+                        const lastCompleted = recurringData.last_completed_at
+                            ? new Date(recurringData.last_completed_at)
+                            : null
+
+                        // If never completed, or completed before this occurrence, it's overdue
+                        if (!lastCompleted || lastCompleted < nextOccurrence) {
+                            overdue++
+                        }
+                    }
+                }
+            }
+
+
 
             const newStats = {
                 total: allTasks.length,

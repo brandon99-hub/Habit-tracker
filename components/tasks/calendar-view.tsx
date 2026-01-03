@@ -37,7 +37,12 @@ export function CalendarView({ tasks, properties, propertyValues, recurringTasks
 
     const monthStart = startOfMonth(currentMonth)
     const monthEnd = endOfMonth(currentMonth)
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
+    const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd })
+
+    // Add padding days at the start to align with correct day of week
+    const startDayOfWeek = monthStart.getDay() // 0 = Sunday, 1 = Monday, etc.
+    const paddingDays = Array(startDayOfWeek).fill(null)
+    const days = [...paddingDays, ...monthDays]
 
     // Get due date property
     const dueDateProp = properties.find((p) => p.name === "Due Date")
@@ -128,7 +133,11 @@ export function CalendarView({ tasks, properties, propertyValues, recurringTasks
 
                 {/* Calendar Days */}
                 <div className="grid grid-cols-7 gap-2">
-                    {days.map((day) => {
+                    {days.map((day, index) => {
+                        if (!day) {
+                            return <div key={`padding-${index}`} className="aspect-square" />;
+                        }
+
                         const isSelected = isSameDay(day, selectedDate)
                         const isCurrentDay = isToday(day)
                         const hasTasks = dateHasTasks(day)

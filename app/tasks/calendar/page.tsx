@@ -31,7 +31,12 @@ export default function CalendarPage() {
 
     const monthStart = startOfMonth(currentMonth)
     const monthEnd = endOfMonth(currentMonth)
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
+    const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd })
+
+    // Add padding days at the start to align with correct day of week
+    const startDayOfWeek = monthStart.getDay() // 0 = Sunday, 1 = Monday, etc.
+    const paddingDays = Array(startDayOfWeek).fill(null)
+    const days = [...paddingDays, ...monthDays]
 
     useEffect(() => {
         async function fetchData() {
@@ -57,7 +62,7 @@ export default function CalendarPage() {
                 return
             }
 
-            console.log("[CALENDAR] Fetching all tasks...")
+
 
             // No cache - fetch from database
             const { data: tasksData, error: tasksError } = await supabase
@@ -71,7 +76,7 @@ export default function CalendarPage() {
                 return
             }
 
-            console.log("[CALENDAR] Loaded tasks:", tasksData?.length || 0)
+
 
             if (tasksData) {
                 setAllTasks(tasksData)
@@ -83,7 +88,7 @@ export default function CalendarPage() {
 
                 if (propsData) {
                     setProperties(propsData)
-                    console.log("[CALENDAR] Loaded properties:", propsData.length)
+
                 }
 
                 // Fetch property values and recurring info for all tasks
@@ -107,11 +112,11 @@ export default function CalendarPage() {
                     }
                     if (recurringData) {
                         recurring[task.id] = recurringData
-                        console.log("[CALENDAR] Task", task.title, "is recurring:", recurringData.pattern)
+
                     }
                 }
 
-                console.log("[CALENDAR] Total recurring tasks:", Object.keys(recurring).length)
+
                 setPropertyValues(values)
                 setRecurringTasks(recurring)
 
@@ -275,7 +280,12 @@ export default function CalendarPage() {
                         ))}
                     </div>
                     <div className="grid grid-cols-7 gap-2">
-                        {days.map((day) => {
+                        {days.map((day, index) => {
+                            // Handle padding days (null values)
+                            if (!day) {
+                                return <div key={`padding-${index}`} className="aspect-square" />
+                            }
+
                             const tasksOnDay = getTasksForDate(day)
                             const isSelected = isSameDay(day, selectedDate)
                             const isCurrentDay = isToday(day)

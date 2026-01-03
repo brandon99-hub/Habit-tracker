@@ -51,7 +51,6 @@ export default function ProfilePage() {
 
                 // If no database record but browser has subscription, save it
                 if (!existingSubscription && 'serviceWorker' in navigator) {
-                    console.log("Found browser subscription without database record, syncing...")
                     await subscribe()
                 }
             }
