@@ -1,5 +1,5 @@
 // Service Worker for HabitForge PWA
-const CACHE_NAME = 'habitforge-v3' // Increment this to force update
+const CACHE_NAME = 'habitforge-v4' // Increment this to force update
 const urlsToCache = [
     '/',
     '/manifest.json',
@@ -31,29 +31,49 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - improved strategy for faster updates
 self.addEventListener('fetch', (event) => {
+    // Navigation request (HTML page) - Network-First
+    // This ensures users get the latest HTML if online
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .catch(() => caches.match(event.request))
+        );
+        return;
+    }
+
+    // Static assets (JS, CSS, Images) - Stale-While-Revalidate
+    // Serve from cache but update in the background
     event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                // Cache hit - return response
-                if (response) {
-                    return response;
+        caches.match(event.request).then((cachedResponse) => {
+            const fetchPromise = fetch(event.request).then((networkResponse) => {
+                // Cache the new version
+                if (networkResponse && networkResponse.status === 200) {
+                    const responseToCache = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseToCache);
+                    });
                 }
-                return fetch(event.request);
-            })
+                return networkResponse;
+            }).catch(() => {
+                // If fetch fails, we just return the cached response (if any)
+            });
+
+            return cachedResponse || fetchPromise;
+        })
     );
 });
 
 // Push notification event
 self.addEventListener('push', (event) => {
     const data = event.data ? event.data.json() : {};
-    const title = data.title || 'TaskFlow';
+    const title = data.title || 'HabitForge';
     const options = {
-        body: data.body || 'Time to complete your tasks!',
+        body: data.body || 'Time to complete your habits!',
         icon: '/logo.png',
         badge: '/logo.png',
-        vibrate: data.vibrate || [200, 100, 200, 100, 200], // More prominent vibration
+        vibrate: data.vibrate || [200, 100, 200, 100, 200],
         data: data.data || {},
         actions: data.actions || [
             {
@@ -67,10 +87,10 @@ self.addEventListener('push', (event) => {
                 icon: '/logo.png'
             }
         ],
-        tag: data.tag || 'task-reminder',
-        requireInteraction: data.requireInteraction !== undefined ? data.requireInteraction : true, // Respect backend setting, default to true
-        renotify: data.renotify || true, // Re-alert for same tag
-        silent: false, // Always play sound
+        tag: data.tag || 'habit-reminder',
+        requireInteraction: data.requireInteraction !== undefined ? data.requireInteraction : true,
+        renotify: data.renotify || true,
+        silent: false,
     };
 
     event.waitUntil(
@@ -87,26 +107,14 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true })
             .then((clientList) => {
-                // Check if app is already open
                 for (let client of clientList) {
                     if (client.url.includes(urlToOpen) && 'focus' in client) {
                         return client.focus();
                     }
                 }
-                // Open new window if not
                 if (clients.openWindow) {
                     return clients.openWindow(urlToOpen);
                 }
             })
     );
-});
-
-// Background sync (for future use)
-self.addEventListener('sync', (event) => {
-    if (event.tag === 'sync-habits') {
-        event.waitUntil(
-            // Sync logic here
-            Promise.resolve()
-        );
-    }
 });
