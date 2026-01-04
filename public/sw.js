@@ -1,11 +1,11 @@
 // Service Worker for HabitForge PWA
-const CACHE_NAME = 'habitforge-v2'; // BUMPED VERSION TO FORCE UPDATE
+const CACHE_NAME = 'habitforge-v3' // Increment this to force update
 const urlsToCache = [
     '/',
     '/manifest.json',
     '/logo.png',
     '/logo-nobackground.png',
-];
+]
 
 // Install event - cache assets
 self.addEventListener('install', (event) => {
