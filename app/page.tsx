@@ -1,6 +1,24 @@
 "use client"
 
 import { useState, useEffect } from "react"
+
+// Global error handler for mobile debugging
+if (typeof window !== 'undefined') {
+  window.onerror = function (msg, url, lineNo, columnNo, error) {
+    const errorMsg = `Error: ${msg}\nFile: ${url}\nLine: ${lineNo}:${columnNo}\nStack: ${error?.stack || 'N/A'}`
+    console.error('MOBILE ERROR:', errorMsg)
+    // Uncomment to show alert on mobile
+    // alert(errorMsg)
+    return false
+  }
+
+  window.addEventListener('unhandledrejection', function (event) {
+    console.error('UNHANDLED PROMISE REJECTION:', event.reason)
+    // Uncomment to show alert on mobile
+    // alert('Promise rejection: ' + event.reason)
+  })
+}
+
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Check, Plus, MoreVertical, Archive, Pause, Play, Trash2, MessageSquare, Moon, Sun, Edit } from "lucide-react"

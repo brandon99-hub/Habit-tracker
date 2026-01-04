@@ -1,5 +1,5 @@
 // Service Worker for HabitForge PWA
-const CACHE_NAME = 'habitforge-v1';
+const CACHE_NAME = 'habitforge-v2'; // BUMPED VERSION TO FORCE UPDATE
 const urlsToCache = [
     '/',
     '/manifest.json',
