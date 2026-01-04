@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { HabitIconPicker } from "@/components/habit-icon-picker"
+import type { HabitIconName } from "@/components/habit-icon"
 
 type AddHabitDialogProps = {
   open: boolean
@@ -19,6 +21,7 @@ type AddHabitDialogProps = {
     category?: string,
     scheduledDays?: number[],
     scheduledTime?: string,
+    icon?: HabitIconName,
   ) => void
 }
 
@@ -39,6 +42,7 @@ export function AddHabitDialog({ open, onOpenChange, onAdd }: AddHabitDialogProp
   const [category, setCategory] = useState<string>("")
   const [scheduledDays, setScheduledDays] = useState<number[]>([])
   const [scheduledTime, setScheduledTime] = useState<string>("")
+  const [icon, setIcon] = useState<HabitIconName>("Sparkles")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,6 +54,7 @@ export function AddHabitDialog({ open, onOpenChange, onAdd }: AddHabitDialogProp
         category || undefined,
         scheduledDays.length > 0 ? scheduledDays : undefined,
         scheduledTime || undefined,
+        icon,
       )
       setName("")
       setType("binary")
@@ -57,6 +62,8 @@ export function AddHabitDialog({ open, onOpenChange, onAdd }: AddHabitDialogProp
       setCategory("")
       setScheduledDays([])
       setScheduledTime("")
+      setIcon("Sparkles")
+      onOpenChange(false)
     }
   }
 
@@ -70,7 +77,8 @@ export function AddHabitDialog({ open, onOpenChange, onAdd }: AddHabitDialogProp
         <DialogHeader>
           <DialogTitle className="text-xl">Add New Habit</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-5">
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">
               Habit Name
@@ -79,7 +87,8 @@ export function AddHabitDialog({ open, onOpenChange, onAdd }: AddHabitDialogProp
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Morning Run"
+              placeholder="e.g., Morning meditation"
+              autoFocus
               className="h-11"
             />
           </div>
@@ -139,6 +148,11 @@ export function AddHabitDialog({ open, onOpenChange, onAdd }: AddHabitDialogProp
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Icon</Label>
+            <HabitIconPicker value={icon} onChange={setIcon} />
+          </div>
+
           <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
             <Label className="text-sm font-medium">
               Schedule <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
@@ -161,29 +175,28 @@ export function AddHabitDialog({ open, onOpenChange, onAdd }: AddHabitDialogProp
                   </button>
                 ))}
               </div>
-              {scheduledDays.length === 0 && <p className="text-xs text-muted-foreground">Daily by default</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="time" className="text-xs text-muted-foreground">
-                Preferred time (optional):
+                Preferred time:
               </Label>
-              <div className="relative">
-                <Input
-                  id="time"
-                  type="time"
-                  value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
-                  className="h-11"
-                  placeholder="Not set"
-                />
-              </div>
+              <Input
+                id="time"
+                type="time"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="h-9"
+              />
             </div>
           </div>
 
-          <Button type="submit" className="h-11 w-full text-base font-medium">
-            Add Habit
-          </Button>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Add Habit</Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

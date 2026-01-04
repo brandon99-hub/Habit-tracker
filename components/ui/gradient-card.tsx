@@ -1,54 +1,44 @@
-"use client"
-
 import { cn } from "@/lib/utils"
 import { Card } from "@/components/ui/card"
 
-type GradientVariant = "primary" | "success" | "warning" | "info" | "card"
-
 interface GradientCardProps extends React.HTMLAttributes<HTMLDivElement> {
-    gradient?: GradientVariant
-    hover?: "lift" | "scale" | "glow" | "none"
+    gradient?: "card" | "primary" | "success" | "warning" | "danger"
+    hover?: "lift" | "glow" | "none"
     children: React.ReactNode
-}
-
-const gradientClasses: Record<GradientVariant, string> = {
-    primary: "gradient-primary",
-    success: "gradient-success",
-    warning: "gradient-warning",
-    info: "gradient-info",
-    card: "gradient-card",
-}
-
-const hoverClasses: Record<string, string> = {
-    lift: "hover-lift",
-    scale: "hover-scale",
-    glow: "hover-glow",
-    none: "",
 }
 
 export function GradientCard({
     gradient = "card",
-    hover = "lift",
+    hover = "none",
     className,
     children,
     ...props
 }: GradientCardProps) {
+    const gradientClasses = {
+        card: "bg-card",
+        primary: "bg-gradient-to-br from-primary/10 to-primary/5",
+        success: "bg-gradient-to-br from-green-500/10 to-green-500/5",
+        warning: "bg-gradient-to-br from-yellow-500/10 to-yellow-500/5",
+        danger: "bg-gradient-to-br from-red-500/10 to-red-500/5",
+    }
+
+    const hoverClasses = {
+        none: "",
+        lift: "transition-transform hover:-translate-y-1 hover:shadow-lg",
+        glow: "transition-shadow hover:shadow-xl hover:shadow-primary/20",
+    }
+
     return (
         <Card
             className={cn(
-                "relative overflow-hidden",
+                gradientClasses[gradient],
                 hoverClasses[hover],
+                "transition-all duration-200",
                 className
             )}
             {...props}
         >
-            {/* Gradient overlay */}
-            <div className={cn("absolute inset-0 opacity-10", gradientClasses[gradient])} />
-
-            {/* Content */}
-            <div className="relative z-10">
-                {children}
-            </div>
+            {children}
         </Card>
     )
 }

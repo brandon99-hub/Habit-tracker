@@ -1,22 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { Home, BarChart3, BookOpen, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-type Tab = "today" | "stats" | "reflections" | "settings"
+export function MobileNav() {
+    const pathname = usePathname()
 
-interface MobileNavProps {
-    activeTab: Tab
-    onTabChange: (tab: Tab) => void
-}
-
-export function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
     const tabs = [
-        { id: "today" as Tab, label: "Today", icon: Home },
-        { id: "stats" as Tab, label: "Stats", icon: BarChart3 },
-        { id: "reflections" as Tab, label: "Reflect", icon: BookOpen },
-        { id: "settings" as Tab, label: "Settings", icon: Settings },
+        { label: "Today", icon: Home, href: "/" },
+        { label: "Stats", icon: BarChart3, href: "/stats" },
+        { label: "Reflect", icon: BookOpen, href: "/reflections" },
+        { label: "Settings", icon: Settings, href: "/settings" },
     ]
 
     return (
@@ -24,12 +20,12 @@ export function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
             <div className="grid grid-cols-4">
                 {tabs.map((tab) => {
                     const Icon = tab.icon
-                    const isActive = activeTab === tab.id
+                    const isActive = pathname === tab.href
 
                     return (
-                        <button
-                            key={tab.id}
-                            onClick={() => onTabChange(tab.id)}
+                        <Link
+                            key={tab.href}
+                            href={tab.href}
                             className={cn(
                                 "flex flex-col items-center gap-1 py-3 transition-colors",
                                 isActive
@@ -39,7 +35,7 @@ export function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
                         >
                             <Icon className={cn("h-5 w-5", isActive && "fill-primary/20")} />
                             <span className="text-xs font-medium">{tab.label}</span>
-                        </button>
+                        </Link>
                     )
                 })}
             </div>

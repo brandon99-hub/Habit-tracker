@@ -13,6 +13,7 @@ export type Habit = DBHabit & {
     lastCompletedDate?: string
     pausedDays: number
     history: { date: string; completed: boolean; value?: number }[]
+    icon?: string
 }
 
 export function useHabits() {
@@ -82,7 +83,8 @@ export function useHabits() {
         unit?: string,
         category?: string,
         scheduledDays?: number[],
-        scheduledTime?: string
+        scheduledTime?: string,
+        icon?: string,
     ) {
         try {
             const { data, error } = await supabase
@@ -94,6 +96,7 @@ export function useHabits() {
                     category,
                     scheduled_days: scheduledDays,
                     scheduled_time: scheduledTime,
+                    icon: icon || 'Sparkles',
                     archived: false,
                     paused: false,
                 })
