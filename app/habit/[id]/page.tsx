@@ -112,7 +112,7 @@ export default function HabitDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="p-3 rounded-xl bg-gradient-to-br from-primary to-purple-600">
-                            <HabitIcon name={habit.icon || 'Sparkles'} className="h-8 w-8 text-white" />
+                            <HabitIcon name={(habit.icon || 'Sparkles') as any} className="h-8 w-8 text-white" />
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground mb-1">Detail:</p>
