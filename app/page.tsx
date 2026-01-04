@@ -25,6 +25,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Check, Plus, MoreVertical, Archive, Pause, Play, Trash2, MessageSquare, Moon, Sun, Edit, Eye, Clock, Flame } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { useTheme } from "next-themes"
 import {
   DropdownMenu,
@@ -213,102 +214,130 @@ export default function Home() {
                   <GradientCard
                     gradient="card"
                     hover="lift"
-                    className="p-4 cursor-pointer"
+                    className={cn(
+                      "p-3 cursor-pointer relative overflow-hidden transition-all duration-300",
+                      habit.completedToday && "opacity-75 bg-accent/50"
+                    )}
                     onClick={() => router.push(`/habit/${habit.id}`)}
                   >
-                    {/* Header Row */}
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="flex items-center gap-2 flex-1">
-                        {habit.icon && <HabitIcon name={habit.icon as any} className="h-5 w-5 text-primary" />}
-                        <h3 className="font-semibold text-base leading-tight">
-                          {habit.name}
-                        </h3>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 -mr-2 -mt-1">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/habit/${habit.id}`) }}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => togglePauseHabit(habit.id)}>
-                            {habit.paused ? (
-                              <>
-                                <Play className="mr-2 h-4 w-4" />
-                                Resume
-                              </>
-                            ) : (
-                              <>
-                                <Pause className="mr-2 h-4 w-4" />
-                                Pause
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => archiveHabit(habit.id)}>
-                            <Archive className="mr-2 h-4 w-4" />
-                            Archive
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    {/* Badges Row */}
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {habit.category && (
-                        <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                          {habit.category}
-                        </Badge>
-                      )}
-                      {habit.scheduled_time && (
-                        <Badge variant="outline" className="text-xs px-2 py-0.5">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {habit.scheduled_time}
-                        </Badge>
-                      )}
-                      {getStreakBadge(habit.currentStreak)}
-                    </div>
-
-                    {/* Stats Row */}
-                    <div className="flex items-center gap-4 mb-3 text-sm">
-                      {habit.currentStreak > 0 && (
-                        <div className="flex items-center gap-1.5">
-                          <Flame className="h-4 w-4 text-orange-500" />
-                          <span className="font-semibold text-foreground">{habit.currentStreak}</span>
-                          <span className="text-muted-foreground">days</span>
-                        </div>
-                      )}
-                      <div className="text-muted-foreground">
-                        {calculateConsistency(habit.history, 7)}% this week
-                      </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="border-t border-border/50 mb-3" />
-
-                    {/* Action Section */}
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      {habit.type === "binary" ? (
-                        <Button
-                          variant={habit.completedToday ? "default" : "outline"}
-                          onClick={() => handleToggleHabit(habit.id)}
-                          className="flex-1 h-11 font-medium"
-                        >
-                          {habit.completedToday ? (
-                            <>
-                              <Check className="h-4 w-4 mr-2" />
-                              Completed
-                            </>
+                    {/* Top Section: Icon, Title, Streak, Menu */}
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={cn(
+                          "p-2 rounded-lg shrink-0 transition-colors",
+                          habit.completedToday ? "bg-green-500/10 text-green-500" : "bg-primary/10 text-primary"
+                        )}>
+                          {habit.icon ? (
+                            <HabitIcon name={habit.icon as any} className="h-5 w-5" />
                           ) : (
-                            "Mark as Done"
+                            <div className="h-5 w-5 flex items-center justify-center font-bold">
+                              {habit.name[0]}
+                            </div>
                           )}
-                        </Button>
-                      ) : (
-                        <div className="flex gap-2 w-full">
-                          <div className="flex-1 flex items-center gap-2 border rounded-md px-3 bg-background">
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className={cn(
+                            "font-bold text-base leading-tight truncate",
+                            habit.completedToday && "text-muted-foreground line-through decoration-2"
+                          )}>
+                            {habit.name}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {habit.category && (
+                              <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                                {habit.category}
+                              </span>
+                            )}
+                            {habit.scheduled_time && (
+                              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                                <Clock className="h-3 w-3" />
+                                <span>{habit.scheduled_time}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {habit.currentStreak > 0 && (
+                          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 text-xs font-bold">
+                            <Flame className="h-3.5 w-3.5" />
+                            <span>{habit.currentStreak}</span>
+                          </div>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/habit/${habit.id}`) }}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => togglePauseHabit(habit.id)}>
+                              {habit.paused ? (
+                                <>
+                                  <Play className="mr-2 h-4 w-4" />
+                                  Resume
+                                </>
+                              ) : (
+                                <>
+                                  <Pause className="mr-2 h-4 w-4" />
+                                  Pause
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => archiveHabit(habit.id)}>
+                              <Archive className="mr-2 h-4 w-4" />
+                              Archive
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+
+                    {/* Middle Section: Progress & Actions */}
+                    <div className="flex items-end justify-between gap-4" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between text-[11px] mb-1.5">
+                          <span className="text-muted-foreground font-medium">
+                            {calculateConsistency(habit.history, 7)}% consistency
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full transition-all duration-500",
+                              habit.completedToday ? "bg-green-500" : "bg-primary"
+                            )}
+                            style={{ width: `${calculateConsistency(habit.history, 7)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        {habit.type === "binary" ? (
+                          <Button
+                            variant={habit.completedToday ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleToggleHabit(habit.id)}
+                            className={cn(
+                              "h-9 w-9 p-0 rounded-xl transition-all duration-300",
+                              habit.completedToday
+                                ? "bg-green-500 hover:bg-green-600 border-none scale-105 shadow-sm shadow-green-500/20"
+                                : "hover:border-primary hover:text-primary"
+                            )}
+                          >
+                            {habit.completedToday ? (
+                              <Check className="h-5 w-5 text-white" />
+                            ) : (
+                              <div className="h-5 w-5 rounded-full border-2 border-current" />
+                            )}
+                          </Button>
+                        ) : (
+                          <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-xl border border-border/50">
                             <Input
                               type="number"
                               value={habit.value || 0}
@@ -316,22 +345,23 @@ export default function Home() {
                                 const val = Number.parseInt(e.target.value) || 0
                                 await updateHabit(habit.id, { value: val } as any)
                               }}
-                              className="border-none p-0 h-9 text-center text-lg font-semibold bg-transparent focus-visible:ring-0"
+                              className="w-12 h-7 border-none p-0 text-center text-sm font-bold bg-transparent focus-visible:ring-0 shadow-none"
                               min="0"
                             />
-                            <span className="text-sm text-muted-foreground whitespace-nowrap">
-                              {habit.unit}
-                            </span>
+                            <Button
+                              variant={habit.completedToday ? "default" : "secondary"}
+                              size="sm"
+                              onClick={() => handleToggleHabit(habit.id, habit.value)}
+                              className={cn(
+                                "h-7 px-3 text-[10px] font-bold rounded-lg transition-all",
+                                habit.completedToday && "bg-green-500 hover:bg-green-600 text-white border-none"
+                              )}
+                            >
+                              {habit.completedToday ? "SAVED" : "LOG"}
+                            </Button>
                           </div>
-                          <Button
-                            variant={habit.completedToday ? "default" : "outline"}
-                            onClick={() => handleToggleHabit(habit.id, habit.value)}
-                            className="h-11 px-6 font-medium"
-                          >
-                            {habit.completedToday ? "Done" : "Log"}
-                          </Button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </GradientCard>
                 </SwipeableHabitCard>

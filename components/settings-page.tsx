@@ -182,6 +182,7 @@ export function SettingsPage() {
                         <Label>Theme</Label>
                         <div className="grid grid-cols-3 gap-2">
                             <Button
+                                suppressHydrationWarning
                                 variant={theme === "light" ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => setTheme("light")}
@@ -191,6 +192,7 @@ export function SettingsPage() {
                                 Light
                             </Button>
                             <Button
+                                suppressHydrationWarning
                                 variant={theme === "dark" ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => setTheme("dark")}
@@ -200,6 +202,7 @@ export function SettingsPage() {
                                 Dark
                             </Button>
                             <Button
+                                suppressHydrationWarning
                                 variant={theme === "system" ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => setTheme("system")}

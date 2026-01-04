@@ -10,7 +10,6 @@ type StatCardData = {
     icon: React.ComponentType<{ className?: string }>
     label: string
     value: string | number
-    color: string
 }
 
 type RotatingStatCardsProps = {
@@ -38,38 +37,32 @@ export function RotatingStatCards({
             icon: Target,
             label: "Total Habits",
             value: totalHabits,
-            color: "from-blue-500 to-blue-600",
         },
         {
             icon: Flame,
             label: "Current Streak",
-            value: `${currentStreak} days`,
-            color: "from-orange-500 to-orange-600",
+            value: `${currentStreak} ${currentStreak === 1 ? 'day' : 'days'}`,
         },
         {
             icon: TrendingUp,
             label: "7-Day Rate",
             value: `${sevenDayRate}%`,
-            color: "from-green-500 to-green-600",
         },
         // Set B (3-5)
         {
             icon: Star,
             label: "Perfect Days",
             value: perfectDays,
-            color: "from-yellow-500 to-yellow-600",
         },
         {
             icon: Dumbbell,
             label: "30-Day Consistency",
             value: `${thirtyDayConsistency}%`,
-            color: "from-purple-500 to-purple-600",
         },
         {
             icon: Trophy,
             label: "Best Habit",
             value: bestHabit,
-            color: "from-amber-500 to-amber-600",
         },
     ]
 
@@ -96,17 +89,18 @@ export function RotatingStatCards({
                             exit={{ opacity: 0, y: -20 }}
                             transition={{ duration: 0.5, delay: i * 0.1 }}
                         >
-                            <Card className="p-6 relative overflow-hidden">
-                                {/* Gradient background */}
-                                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-10", card.color)} />
+                            <Card className="p-2.5 h-32 flex flex-col overflow-hidden">
+                                {/* Icon at top left */}
+                                <div className="mb-2">
+                                    <div className="inline-flex p-2 rounded-lg bg-primary/10">
+                                        <Icon className="h-5 w-5 text-primary" />
+                                    </div>
+                                </div>
 
                                 {/* Content */}
-                                <div className="relative z-10">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <Icon className={cn("h-8 w-8 bg-gradient-to-br bg-clip-text text-transparent", card.color)} />
-                                    </div>
-                                    <p className="text-sm text-muted-foreground mb-1">{card.label}</p>
-                                    <p className="text-3xl font-bold">{card.value}</p>
+                                <div className="flex-1 flex flex-col justify-center min-w-0">
+                                    <p className="text-xs text-muted-foreground mb-1 font-medium truncate">{card.label}</p>
+                                    <p className="text-xl font-bold text-primary truncate" title={String(card.value)}>{card.value}</p>
                                 </div>
                             </Card>
                         </motion.div>
